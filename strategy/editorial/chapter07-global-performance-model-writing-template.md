@@ -61,7 +61,7 @@
 
 ### 3.5 实验
 
-实验固定六个字段：目标、环境、输入、步骤、观测指标、可重复性边界。本主题先运行 8 项单测，再使用同一程序处理 LLM、RAG 和 Agent 三份合成依赖图。详细步骤见 [`01-global-performance-model`](../../content/workshops/01-global-performance-model/README.md)。
+实验固定六个字段：目标、环境、输入、步骤、观测指标、可重复性边界。本主题先运行 8 项单测，再使用同一程序处理 LLM、RAG 和 Agent 三份合成依赖图。
 
 ### 3.6 结果分析
 

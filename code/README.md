@@ -22,7 +22,7 @@ code/
 | Ch04 | LLM Serving 架构 | [code/ch04](ch04/README.md) | 已迁移；支持单实例与 Scale-out profile |
 | Ch05 | 性能指标与延迟预算 | [code/ch05](ch05/README.md) | 已迁移；包含 SLO-aware Goodput 与预算计算 |
 | Ch06 | LLM 工作负载建模 | — | 待建设 |
-| Ch07 | Benchmark Design | — | 待建设；旧 Global Performance Model 已移入 `code/migration-assets/` |
+| Ch07 | Benchmark Design | — | 待建设 |
 | Ch08 | 请求级可观测性 | — | 待建设 |
 | Ch09 | Profiling Toolchain | — | 待建设 |
 | Ch10 | Root Cause Analysis Lab | — | 待建设 |
