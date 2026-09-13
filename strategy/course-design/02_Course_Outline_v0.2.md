@@ -55,11 +55,13 @@ V0.2 保留现有 7 Part、30 章结构。两本参考书用于补强方法，�
 | 章节 | 标题 | 定位 | 核心问题 |
 |---|---|---|---|
 | Ch11 | Prefill 工作机制与性能模型 | Core | Prompt 如何经过 Attention、GEMM 并创建 KV Cache？ |
-| Ch12 | 长上下文与 RAG 上下文成本 | Core | 上下文长度、有效信息密度和 Prompt 结构如何放大 TTFT 与成本？ |
+| Ch12 | 长上下文与 RAG 上下文成本 | Core | 上下文长度、有效信息密度和 Prompt 结构如何放大 TTFT 与 token 成本？ |
 | Ch13 | Prefill 优化方法 | Bridge | FlashAttention、上下文裁剪、Prefix Cache 和 Chunked Prefill 何时有效？ |
 | Ch14 | Prefill 优化实验 | Core | 如何用相同长 Prompt 工作负载验证 TTFT、吞吐和显存变化？ |
 
 FlashInfer 按具体 Kernel/Runtime 能力介绍，不把框架名称当成单一优化算法。
+
+长上下文同时压 Prefill 计算量和 KV Cache 占用，本篇只负责前一半：Ch12 讲上下文长度如何放大 TTFT 与 token 成本，显存占用、并发上限和抢占交给 Ch16。Ch12 正文要显式写出这个交接，让读者知道这笔账只算了一半。
 
 ## Part 4：Decode、KV Cache 与生成优化
 
