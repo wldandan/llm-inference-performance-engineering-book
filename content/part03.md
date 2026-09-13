@@ -1,59 +1,65 @@
-# Part 3 Prefill Optimization（Prefill 优化）
+# Part 3 Prefill 与上下文优化（Prefill & Context）
 
 ## 本篇导读
 
-Part 1 建立了推理系统地图，Part 2 建立了 Benchmark、Profiling、Root Cause 和 Diagnosis 的证据链。第三篇开始进入真正的优化模块，但仍然遵守同一条原则：先理解机制，再分析瓶颈，然后选择优化，最后验证收益。
+Part 2 结束时，你手上有一份根因报告，它可能指向同一个结论：首包等太久。
 
-Prefill 是 LLM 推理中处理完整输入 prompt 的阶段。它通常决定用户看到首个 token 之前要等待多久，因此和 TTFT 关系最直接。长 prompt、RAG 上下文、Agent 工具结果、代码仓库片段和多轮对话历史都会放大 Prefill 压力。Prefill 慢，不一定是模型“整体慢”，也不一定能靠调大并发解决。它可能来自 attention 数据访问、GEMM 计算、kernel launch、KV Cache 创建、batch token 预算或输入长度分布。
+接下来的问题是，这个“太久”能不能变短。而在动手之前，有几件事必须先搞清楚：首个 token 出来之前，GPU 到底在算什么？输入翻倍，这段时间会翻倍吗？RAG 多取几段，代价是多少？
 
-本篇的目标，是把 Prefill 从一个模糊的“首包前计算”拆成可分析、可优化、可验证的工程对象。
+这些问题不搞清楚就直接调参，会发生一件很典型的事：把所有听说过的开关都打开，TTFT 降了一点，但没人说得清是哪个开关起的作用，也没人知道换个场景还灵不灵。
+
+本篇要做的是把 Prefill 从“首包前的一段黑盒时间”变成一个可估算、可算账、可逐项验证的工程对象。
 
 ## 本篇主线
 
-本篇对应课程统一方法中的完整闭环：
-
 ```text
-理解系统
-  -> 理解瓶颈
-  -> 定位瓶颈
-  -> 优化方案
-  -> 验证收益
+一份指向 TTFT 的根因报告（Part 2 的终点）
+  -> 先能估出这段时间该是多少      Ch11
+  -> 再算清上下文长度的那笔账      Ch12
+  -> 然后知道有哪几条路可走        Ch13
+  -> 最后用同一份负载逐项验证      Ch14
 ```
 
-四章关系如下：
-
-1. 第 10 章先讲 Prefill 工作机制：输入如何进入模型，Attention、GEMM 和 KV Cache 创建各自在哪里。
-2. 第 11 章讲 Prefill 性能分析：为什么它更容易 compute-bound，如何用 Roofline、Tensor Core 和 Timeline 看证据。
-3. 第 12 章讲 Prefill 优化方法：FlashAttention、FlashInfer 分别解决什么问题——这两项针对大矩阵乘法和 attention 计算效率，与 Prefill 的计算密集特征对应；CUDA Graph、Kernel Fusion、Persistent Kernel 已移至第 16 章 Decode 优化方法，因为它们解决的是"小 kernel 高频调用的启动开销"，与 Decode 的瓶颈特征更吻合。
-4. 第 13 章讲 Prefill 实战验证：用 prompt 长度实验、TTFT Benchmark 和 Performance Report 验证收益边界。
-
-这四章必须连起来写。第 10 章不急着优化，第 11 章不直接调参，第 12 章不只列技术名，第 13 章不只展示结果截图。
+顺序是有意的。第 11 章不谈优化，因为不知道时间花在哪里，优化就是碰运气；第 12 章不讲技术手段，因为大量 TTFT 问题的根源是上下文本身太长，而不是算得不够快；第 13 章讲技术手段但不给结论，因为每一项都有前提条件；第 14 章才动手，且一次只改一项。
 
 ## 本篇章节关系
 
-| 章节 | 作用 |
-|---|---|
-| Chapter 10 Prefill 工作机制 | 建立 Prefill 执行流程、Attention Pipeline、GEMM 和 KV Cache 创建的机制视图。 |
-| Chapter 11 Prefill 性能分析 | 解释 Compute Bound、Roofline、Tensor Core、Kernel Timeline 和 Profiling 证据。 |
-| Chapter 12 Prefill 优化方法 | 按技术专题讲 FlashAttention、FlashInfer 的适用条件和 Trade-off（CUDA Graph / Kernel Fusion / Persistent Kernel 已移至 Chapter 16 Decode 优化方法）。 |
-| Chapter 13 Prefill 实战验证 | 用 prompt 长度实验和 TTFT Benchmark 完成 Baseline -> Profiling -> Optimization -> Verification -> Report。 |
+| 章节 | 本章完成什么 | 明确不做什么 |
+|---|---|---|
+| Chapter 11 Prefill 工作机制与性能模型 | 拆出 GEMM、Attention、KV Cache 写入三部分，给出能算到数量级的估算公式 | 不讲优化技术，不调任何参数 |
+| Chapter 12 长上下文与 RAG 上下文成本 | 按来源拆解 prompt，算清长度对 TTFT 和 token 账单的两笔不同影响 | 不谈显存占用、并发上限和抢占，那是第 16 章 |
+| Chapter 13 Prefill 优化方法 | 四项技术各自改变什么、前提是什么、代价是什么，以及该按什么顺序试 | 不给“应该用哪个”的通用答案 |
+| Chapter 14 Prefill 优化实验 | 用同一份长 Prompt 负载逐项验证，产出含边界说明的报告 | 不引入新技术，只验证前一章列出的四项 |
+
+三章方法加一章实践，和 Part 2 的结构一致。
+
+## 本篇贯穿的三条纪律
+
+**一、估算的价值在于对照，不在于准确。** 第 11 章给的公式算不出精确的毫秒数，也不需要。它的用处是当实测和估算差一个数量级时，你知道有事情正在发生。把估算当预测用会失望，当基准用才对。
+
+**二、先问内容能不能少，再问能不能算快。** 第 12 章会反复出现同一个现象：RAG 把 Top-K 从 6 调到 13，TTFT 涨了近八成，而质量几乎没变。这类问题不需要任何技术手段，只需要把参数调回去。技术优化应该排在这之后。
+
+**三、一次只改一项。** 第 14 章的硬性要求。四项技术同时上，收益 45% 也说不清是谁的功劳；换个模型再上一遍收益只剩 12% 时，无从查起。
 
 ## 学完本篇你应该能做到什么
 
-读完 Part 3，你应该能够：
-
-- 画出 Prefill 从 token 输入到 KV Cache 写入的执行路径。
-- 判断 Prefill 问题更像计算瓶颈、kernel launch 开销、attention 数据访问问题还是调度问题。
-- 根据 Profiling 证据选择合适的 Prefill 优化技术，而不是看到 TTFT 高就盲目打开所有开关。
-- 设计 prompt 长度实验，验证优化对 TTFT、TPS、GPU Utilization 和显存的影响。
-- 写出一份 Prefill Performance Report，说明收益、边界、Trade-off 和上线前检查项。
+- 说清首个 token 出来之前 GPU 做了哪几件事，以及各自随输入长度怎么增长；
+- 解释为什么输入翻倍时 Prefill 时间涨得比两倍多，以及在什么长度下这个超线性才明显；
+- 算出一份 prompt 的 KV Cache 写入量，并说明 GQA 把它减到了几分之一；
+- 把一份 RAG prompt 按来源拆开，指出哪部分每次都在重复付费；
+- 画出 Top-K 与质量的曲线，找出收益停滞的那个拐点；
+- 说出四项 Prefill 优化各自改变什么、前提是什么、代价是什么；
+- 判断某项技术“没有效果”是它不管用，还是这个场景本来就不适合它；
+- 在实验开始前写下含无效判据的预期，并按 Baseline 的波动确定这个判据；
+- 产出一份含护栏指标和四项边界说明的优化报告。
 
 ## 进入下一篇之前的检查清单
 
-- [ ] 能说明 Prefill 与 Decode 的职责边界。
-- [ ] 能解释为什么长 prompt 会显著影响 TTFT。
-- [ ] 能把 Prefill 的主要计算拆成 Attention、GEMM、KV Cache 创建和运行时调度开销。
-- [ ] 能用 Benchmark 和 Profiling 证据判断一项 Prefill 优化是否适用。
-- [ ] 能说明某项优化的收益在哪些 prompt 长度、模型结构、硬件和框架版本下成立。
+- [ ] 能对着一份 prompt 长度，估出 Prefill 的 FLOPs 量级和 KV Cache 写入量。
+- [ ] 能说明在当前模型和长度下，GEMM 和 Attention 谁是主导。
+- [ ] 手上有一张 Top-K 与 TTFT、token 数、质量分的对照表。
+- [ ] 能说出 Prefix Cache 命中率低时该先查什么。
+- [ ] 知道 Chunked Prefill 的主指标为什么不是本条请求的 TTFT。
+- [ ] 有一份实验报告，每轮只改一项，含护栏指标和边界说明。
 
-下一篇会进入 Decode Optimization。Prefill 关注首个 token 之前的大块输入处理；Decode 关注首个 token 之后的逐 token 生成节奏。两者瓶颈不同，优化方法也不同。
+下一篇转向 Decode。Prefill 是一次性处理完整输入，瓶颈在算力；Decode 是逐 token 生成，每一步都要把整个模型的权重读一遍，瓶颈在显存带宽。瓶颈类型不同，优化手段几乎没有重合。另外，第 12 章欠下的那笔账也在下一篇结清：上下文长度不只放大 TTFT，还占用显存，进而决定并发上限。
