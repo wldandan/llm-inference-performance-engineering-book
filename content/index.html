@@ -206,14 +206,15 @@
       <a class="navlink" href="#audience">适合谁学</a>
     </div>
     <div class="navgroup">
-      <div class="label">课程内容 · 7 Part</div>
-      <a class="navlink sub" href="#part1">01 理解推理系统</a>
-      <a class="navlink sub" href="#part2">02 性能分析</a>
-      <a class="navlink sub" href="#part3">03 Prefill 优化</a>
-      <a class="navlink sub" href="#part4">04 Decode 优化</a>
-      <a class="navlink sub" href="#part5">05 Serving 优化</a>
-      <a class="navlink sub" href="#part6">06 Scalability 优化</a>
-      <a class="navlink sub" href="#part7">07 生产实践</a>
+      <div class="label">课程内容 · 开篇 + 7 Part</div>
+      <a class="navlink sub" href="#part0">00 开篇 · 三条规律</a>
+      <a class="navlink sub" href="#part1">01 从一个请求理解推理系统</a>
+      <a class="navlink sub" href="#part2">02 测量、观测与根因分析</a>
+      <a class="navlink sub" href="#part3">03 Prefill 与上下文优化</a>
+      <a class="navlink sub" href="#part4">04 Decode、KV Cache 与生成优化</a>
+      <a class="navlink sub" href="#part5">05 Serving、RAG 与 Agent 性能工程</a>
+      <a class="navlink sub" href="#part6">06 容量、成本与生产工程</a>
+      <a class="navlink sub" href="#part7">07 综合项目</a>
     </div>
   </nav>
 
@@ -225,7 +226,7 @@
 
         <div class="stats">
           <div class="stat"><div class="n">7</div><div class="l">课程模块 Part</div></div>
-          <div class="stat"><div class="n">30</div><div class="l">章节 Chapter</div></div>
+          <div class="stat"><div class="n">30</div><div class="l">章节 Chapter，另有开篇</div></div>
           <div class="stat"><div class="n">13+</div><div class="l">动手实验，逐项验证</div></div>
         </div>
       </div>
@@ -290,113 +291,125 @@
     <div class="section-head">
       <div class="kicker">课程内容</div>
       <h2>7 个模块，沿着推理系统的生命周期展开</h2>
-      <p>从建立系统认知，到 Prefill / Decode / Serving / Scalability 四大优化战场，最后落到生产环境的持续优化实践。</p>
+      <p>从一个请求建立系统认知，先把测量、观测和根因分析的方法立住，再依次进入 Prefill、Decode、Serving 与应用链路、容量与生产工程，最后用一个综合项目把前面的内容用在一件事上。</p>
     </div>
+
+    <details class="part-card" id="part0">
+      <summary>
+        <span class="pn">开篇</span>
+        <span class="pt"><h3>推理性能的三条规律</h3><div class="pq">不启动服务、不写代码：从价目表上的三个差价讲起，推荐先读，跳过也不影响后面各章</div></span>
+        <span class="pc">Ch 0</span>
+        <span class="chev">▸</span>
+      </summary>
+      <div class="chapters">
+        <div class="ch-row"><span class="cn">00</span><span class="ct">延迟、成本和质量为什么总在互相拉扯<span class="desc">写比读贵，算过的不必重算；批量摊薄搬运，满载拉长等待；只有有用的产出才算数</span></span></div>
+      </div>
+    </details>
 
     <details class="part-card" id="part1" open>
       <summary>
         <span class="pn">Part 1</span>
-        <span class="pt"><h3>理解推理系统</h3><div class="pq">建立统一的系统认知地图：硬件、架构、生命周期、指标、瓶颈模型</div></span>
+        <span class="pt"><h3>从一个请求理解推理系统</h3><div class="pq">读完交付：一次真实调用的完整记录与统一的指标口径</div></span>
         <span class="pc">Ch 1–5</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">01</span><span class="ct">GPU 架构基础<span class="desc">SM 与 Warp 调度、显存层级、Tensor Core、Occupancy</span></span></div>
-        <div class="ch-row"><span class="cn">02</span><span class="ct">LLM Inference Architecture<span class="desc">Client / Gateway / Scheduler / Worker / Runtime，vLLM、SGLang、TensorRT-LLM 架构对比</span></span></div>
-        <div class="ch-row"><span class="cn">03</span><span class="ct">Inference Lifecycle<span class="desc">Queue / Prefill / Decode / Response，KV Cache 生命周期，流式输出</span></span></div>
-        <div class="ch-row"><span class="cn">04</span><span class="ct">Performance Metrics<span class="desc">TTFT、TPOT/ITL、TPS、RPS、GPU 利用率、P50/P95/P99、Cost per Token</span></span></div>
-        <div class="ch-row"><span class="cn">05</span><span class="ct">Global Performance Model<span class="desc">Compute / Memory / Scheduling Bottleneck，指标间的 Trade-off</span></span></div>
+        <div class="ch-row"><span class="cn">01</span><span class="ct">第一个 LLM 服务<span class="desc">启动最小 vLLM 服务，跑通同步与流式调用，留下第一份运行记录</span></span></div>
+        <div class="ch-row"><span class="cn">02</span><span class="ct">真实请求生命周期<span class="desc">请求在系统里如何流动</span></span></div>
+        <div class="ch-row"><span class="cn">03</span><span class="ct">Transformer 生成机制<span class="desc">模型怎样生成下一个 token</span></span></div>
+        <div class="ch-row"><span class="cn">04</span><span class="ct">LLM Serving 架构<span class="desc">谁负责请求链路的哪一段</span></span></div>
+        <div class="ch-row"><span class="cn">05</span><span class="ct">性能指标与延迟预算<span class="desc">先统一口径，再比较数字</span></span></div>
       </div>
     </details>
 
     <details class="part-card" id="part2">
       <summary>
         <span class="pn">Part 2</span>
-        <span class="pt"><h3>性能分析</h3><div class="pq">建立统一的性能分析方法：怎么测、怎么剖、怎么定位根因</div></span>
-        <span class="pc">Ch 6–9</span>
+        <span class="pt"><h3>测量、观测与根因分析</h3><div class="pq">读完交付：一份可复现的 Baseline 和一份根因报告</div></span>
+        <span class="pc">Ch 6–10</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">06</span><span class="ct">Benchmark Design<span class="desc">Baseline 建立、Warmup、Repeat、并发设计</span></span></div>
-        <div class="ch-row"><span class="cn">07</span><span class="ct">Profiling Toolchain<span class="desc">Nsight Systems / Compute、PyTorch Profiler、vLLM Profiling</span></span></div>
-        <div class="ch-row"><span class="cn">08</span><span class="ct">Root Cause Analysis<span class="desc">Timeline 分析、GPU 利用率分析、Scheduler Bottleneck</span></span></div>
-        <div class="ch-row"><span class="cn">09</span><span class="ct">Performance Diagnosis<span class="desc">统一 Performance Checklist</span></span></div>
+        <div class="ch-row"><span class="cn">06</span><span class="ct">LLM 工作负载建模<span class="desc">先说清楚“负载”是什么</span></span></div>
+        <div class="ch-row"><span class="cn">07</span><span class="ct">Benchmark Design<span class="desc">让一个数字可以被复现</span></span></div>
+        <div class="ch-row"><span class="cn">08</span><span class="ct">请求级可观测性<span class="desc">把一条请求的痕迹找齐</span></span></div>
+        <div class="ch-row"><span class="cn">09</span><span class="ct">Profiling Toolchain<span class="desc">先问问题，再挑工具</span></span></div>
+        <div class="ch-row"><span class="cn">10</span><span class="ct">Root Cause Analysis Lab<span class="desc">把现象收敛成可证伪的结论</span></span></div>
       </div>
     </details>
 
     <details class="part-card" id="part3">
       <summary>
         <span class="pn">Part 3</span>
-        <span class="pt"><h3>Prefill 优化</h3><div class="pq">为什么 Prefill 慢，如何降低它对首字延迟的影响</div></span>
-        <span class="pc">Ch 10–13</span>
+        <span class="pt"><h3>Prefill 与上下文优化</h3><div class="pq">读完交付：长 Prompt 场景下的 TTFT 优化与同流量验证</div></span>
+        <span class="pc">Ch 11–14</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">10</span><span class="ct">Prefill 工作机制 <span class="bound compute">compute-bound</span><span class="desc">Attention Pipeline、GEMM、KV Cache 创建</span></span></div>
-        <div class="ch-row"><span class="cn">11</span><span class="ct">Prefill 性能分析<span class="desc">Roofline、Tensor Core、Kernel Timeline</span></span></div>
-        <div class="ch-row"><span class="cn">12</span><span class="ct">Prefill 优化方法<span class="desc">FlashAttention、FlashInfer</span></span></div>
-        <div class="ch-row"><span class="cn">13</span><span class="ct">Prefill 实战验证<span class="desc">Prompt 长度实验、TTFT Benchmark</span></span></div>
+        <div class="ch-row"><span class="cn">11</span><span class="ct">Prefill 工作机制与性能模型<span class="desc">首 token 之前发生了什么</span></span></div>
+        <div class="ch-row"><span class="cn">12</span><span class="ct">长上下文与 RAG 上下文成本<span class="desc">塞进去的每一段都要付钱</span></span></div>
+        <div class="ch-row"><span class="cn">13</span><span class="ct">Prefill 优化方法<span class="desc">四条路各自通向哪里</span></span></div>
+        <div class="ch-row"><span class="cn">14</span><span class="ct">Prefill 优化实验<span class="desc">把预期拿去撞真实数据</span></span></div>
       </div>
     </details>
 
     <details class="part-card" id="part4">
       <summary>
         <span class="pn">Part 4</span>
-        <span class="pt"><h3>Decode 优化</h3><div class="pq">为什么 Decode 慢，如何改善逐字生成的效率</div></span>
-        <span class="pc">Ch 14–17</span>
+        <span class="pt"><h3>Decode、KV Cache 与生成优化</h3><div class="pq">读完交付：TPOT、显存与质量的联合权衡结论</div></span>
+        <span class="pc">Ch 15–19</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">14</span><span class="ct">Decode 工作机制 <span class="bound memory">memory-bound</span><span class="desc">Decode Flow、Sampling、KV Cache Read</span></span></div>
-        <div class="ch-row"><span class="cn">15</span><span class="ct">Decode 性能分析<span class="desc">HBM Bandwidth、KV Cache Growth、Kernel Launch Overhead</span></span></div>
-        <div class="ch-row"><span class="cn">16</span><span class="ct">Decode 优化方法<span class="desc">PagedAttention、KV Quantization、缓存感知路由、CUDA Graph、Speculative Decoding</span></span></div>
-        <div class="ch-row"><span class="cn">17</span><span class="ct">Decode 实战验证<span class="desc">Long Context 实验、TPOT Benchmark</span></span></div>
+        <div class="ch-row"><span class="cn">15</span><span class="ct">Decode 工作机制与性能模型<span class="desc">为什么一次只算一个 token 反而更亏</span></span></div>
+        <div class="ch-row"><span class="cn">16</span><span class="ct">KV Cache 管理与容量<span class="desc">显存决定你能同时服务多少人</span></span></div>
+        <div class="ch-row"><span class="cn">17</span><span class="ct">量化与内存优化<span class="desc">用精度换容量和速度</span></span></div>
+        <div class="ch-row"><span class="cn">18</span><span class="ct">生成与 Runtime 优化<span class="desc">不动精度的另外两条路</span></span></div>
+        <div class="ch-row"><span class="cn">19</span><span class="ct">Decode 优化实验<span class="desc">五个指标要一起看</span></span></div>
       </div>
     </details>
 
     <details class="part-card" id="part5">
       <summary>
         <span class="pn">Part 5</span>
-        <span class="pt"><h3>Serving 优化</h3><div class="pq">为什么 GPU 没有跑满，如何提高调度效率和系统吞吐</div></span>
-        <span class="pc">Ch 18–21</span>
+        <span class="pt"><h3>Serving、RAG 与 Agent 性能工程</h3><div class="pq">读完交付：一条真实应用链路的关键路径优化</div></span>
+        <span class="pc">Ch 20–25</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">18</span><span class="ct">Serving 工作机制<span class="desc">API 层与客户端协议、Queue、Scheduler、Worker</span></span></div>
-        <div class="ch-row"><span class="cn">19</span><span class="ct">Serving 性能分析 <span class="bound schedule">scheduling-bound</span><span class="desc">Queue Delay、GPU Idle、Batch Efficiency</span></span></div>
-        <div class="ch-row"><span class="cn">20</span><span class="ct">Serving 优化方法<span class="desc">Continuous Batching、Chunked Prefill、Prefill-Decode 分离</span></span></div>
-        <div class="ch-row"><span class="cn">21</span><span class="ct">Serving 实战验证<span class="desc">TPS Benchmark、Queue Delay 分析</span></span></div>
+        <div class="ch-row"><span class="cn">20</span><span class="ct">Scheduler 与 Continuous Batching<span class="desc">请求在进 GPU 之前发生了什么</span></span></div>
+        <div class="ch-row"><span class="cn">21</span><span class="ct">流量治理与可靠性<span class="desc">顶不住的时候该怎么垮</span></span></div>
+        <div class="ch-row"><span class="cn">22</span><span class="ct">Serving 架构选择与模型路由<span class="desc">这套东西到底该不该自己部署</span></span></div>
+        <div class="ch-row"><span class="cn">23</span><span class="ct">RAG 性能工程<span class="desc">模型之外的那一半时间</span></span></div>
+        <div class="ch-row"><span class="cn">24</span><span class="ct">Agent 性能工程<span class="desc">一次任务，几十次调用</span></span></div>
+        <div class="ch-row"><span class="cn">25</span><span class="ct">Serving 与 Agent 综合实验<span class="desc">在一条真实链路上守住 SLO</span></span></div>
       </div>
     </details>
 
     <details class="part-card" id="part6">
       <summary>
         <span class="pn">Part 6</span>
-        <span class="pt"><h3>Scalability 优化</h3><div class="pq">如何提升并发、扩展容量并降低成本</div></span>
-        <span class="pc">Ch 22–25</span>
+        <span class="pt"><h3>容量、成本与生产工程</h3><div class="pq">读完交付：容量模型、回归门禁与上线检查清单</div></span>
+        <span class="pc">Ch 26–29</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">22</span><span class="ct">Scalability 工作机制 <span class="bound capacity">capacity-bound</span><span class="desc">Capacity Model、Memory Pool、Multi-GPU</span></span></div>
-        <div class="ch-row"><span class="cn">23</span><span class="ct">Scalability 性能分析<span class="desc">Fragmentation、Capacity Profiling</span></span></div>
-        <div class="ch-row"><span class="cn">24</span><span class="ct">Scalability 优化方法<span class="desc">Tensor/Pipeline/Expert Parallel、MoE 推理优化、Autoscaling</span></span></div>
-        <div class="ch-row"><span class="cn">25</span><span class="ct">Scalability 实战验证<span class="desc">Capacity Benchmark、成本分析</span></span></div>
+        <div class="ch-row"><span class="cn">26</span><span class="ct">容量、显存与成本模型<span class="desc">这套系统该配多少，花多少钱</span></span></div>
+        <div class="ch-row"><span class="cn">27</span><span class="ct">多副本、路由与 Autoscaling<span class="desc">弹性为什么救不了突发</span></span></div>
+        <div class="ch-row"><span class="cn">28</span><span class="ct">性能回归与发布门禁<span class="desc">让变慢在上线前就被拦住</span></span></div>
+        <div class="ch-row"><span class="cn">29</span><span class="ct">Performance Review 与上线检查<span class="desc">上不上，谁来拍板</span></span></div>
       </div>
     </details>
 
     <details class="part-card" id="part7">
       <summary>
         <span class="pn">Part 7</span>
-        <span class="pt"><h3>生产实践</h3><div class="pq">企业如何持续进行性能优化，而不是只完成一次性调优</div></span>
-        <span class="pc">Ch 26–30</span>
+        <span class="pt"><h3>综合项目</h3><div class="pq">读完交付：一套可运行、可观测、可解释的完整服务</div></span>
+        <span class="pc">Ch 30</span>
         <span class="chev">▸</span>
       </summary>
       <div class="chapters">
-        <div class="ch-row"><span class="cn">26</span><span class="ct">Benchmark Automation<span class="desc">自动化 Benchmark、数据采集</span></span></div>
-        <div class="ch-row"><span class="cn">27</span><span class="ct">Performance Regression<span class="desc">CI 集成、自动告警、真实失效案例</span></span></div>
-        <div class="ch-row"><span class="cn">28</span><span class="ct">Observability<span class="desc">Dashboard、Grafana、Prometheus</span></span></div>
-        <div class="ch-row"><span class="cn">29</span><span class="ct">Performance Review<span class="desc">Performance Checklist、Optimization Matrix</span></span></div>
-        <div class="ch-row"><span class="cn">30</span><span class="ct">Final Project<span class="desc">Benchmark → Profiling → Root Cause → Optimization → Verification</span></span></div>
+        <div class="ch-row"><span class="cn">30</span><span class="ct">端到端性能工程项目<span class="desc">把二十九章用在一件事上</span></span></div>
       </div>
     </details>
   </div>
