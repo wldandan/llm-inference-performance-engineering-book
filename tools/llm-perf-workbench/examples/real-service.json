@@ -1,0 +1,26 @@
+{
+  "name": "first-real-baseline",
+  "endpoint": {
+    "base_url": "http://127.0.0.1:8000/v1",
+    "model": "REPLACE_WITH_SERVED_MODEL_ID",
+    "api_key_env": null,
+    "environment": {
+      "engine": "fill exact serving engine/version",
+      "hardware": "fill device model",
+      "precision": "fill actual precision"
+    }
+  },
+  "dataset": [
+    {"id":"classify-001","category":"classification","messages":[{"role":"user","content":"将以下主题归类：LLM 推理优化；数据库性能。只输出 JSON 对象，包含 categories 字段。"}],"max_tokens":128},
+    {"id":"summarize-001","category":"summary","messages":[{"role":"user","content":"用中文解释 Prefill 和 Decode 的主要区别。"}],"max_tokens":256}
+  ],
+  "load": {"mode":"concurrency","concurrency":1,"count":10,"warmup":1,"scan":[],"repeats":1,"seed":42},
+  "generation": {"stream":true,"max_tokens":256,"temperature":0},
+  "quality": {"mode":"manual","reject_truncated":true},
+  "goals": {"mode":"offline","min_quality_pass_rate":1,"max_error_rate":0},
+  "safety": {"max_requests":100,"max_concurrency":8,"max_duration_s":300,"request_timeout_s":60,"max_output_tokens":25600},
+  "telemetry": {"interval_s":1,"sources":[]},
+  "cache_condition":"unknown",
+  "protocol_fixture":false,
+  "notes":"Replace the samples with representative business data. Manual quality labels are required before ranking."
+}

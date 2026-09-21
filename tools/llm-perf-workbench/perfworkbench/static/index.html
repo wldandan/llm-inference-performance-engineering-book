@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>推理实验室 · LLM Performance Workbench</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <aside class="sidebar">
+    <a class="brand" href="#overview" aria-label="推理实验室首页"><span class="brand-mark" aria-hidden="true">↗</span><span>推理实验室<small>INFERENCE FIELDNOTES</small></span></a>
+    <div class="edition">LOCAL WORKBENCH <span>V0.1</span></div>
+    <nav aria-label="主导航">
+      <button type="button" data-view="overview" aria-current="page"><span aria-hidden="true">01</span>实验概览</button>
+      <button type="button" data-view="editor"><span aria-hidden="true">02</span>新建实验</button>
+      <button type="button" data-view="compare"><span aria-hidden="true">03</span>结果比较</button>
+    </nav>
+    <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span>本地工作空间<p>设定目标，采集证据。<br>把每一次调整变成可复测的实验。</p><small>不会自动修改模型服务配置</small></div>
+    <div class="sidebar-footer">OBSERVE / MEASURE / VERIFY</div>
+  </aside>
+  <main id="main" tabindex="-1">
+    <header class="topbar"><span>LLM PERFORMANCE / 实验记录</span><span id="connection" role="status">正在连接本地服务…</span></header>
+    <p id="global-error" class="error" role="alert" hidden></p>
+    <section id="view-overview" class="view" aria-labelledby="overview-title">
+      <div class="hero"><div><p class="eyebrow">性能工程，从可复现开始</p><h1 id="overview-title">每一次优化，都留下证据。</h1><p class="lede">在相同的工作负载下，理解吞吐、延迟与质量的取舍。<br>从一份基线出发，再用下一次实验验证判断。</p><button class="primary" type="button" data-view="editor">新建实验 <span aria-hidden="true">↗</span></button></div><div class="notebook-stamp" aria-hidden="true"><span>FIELD<br>NOTES</span><div>目标 → 基线 → 复测</div><small>MEASURE WHAT MATTERS.</small></div></div>
+      <div class="overview-facts"><div><span>实验记录</span><strong id="run-count">—</strong></div><div><span>当前运行</span><strong id="active-count">—</strong></div><div><span>数据边界</span><strong class="fact-text">保存在本机</strong></div></div>
+      <div class="section-heading"><h2>实验记录 <span class="kicker">EXPERIMENT LOG</span></h2><button id="refresh" type="button" class="quiet">刷新列表 ↻</button></div>
+      <div id="run-list" aria-live="polite"><p class="muted">正在读取实验记录…</p></div>
+      <div class="method-strip"><span>01 <b>定义工作负载</b> 记录数据、模型和环境</span><span>02 <b>测量完整窗口</b> 看见质量和失败长尾</span><span>03 <b>验证调整效果</b> 对齐条件再比较</span></div>
+    </section>
+
+    <section id="view-editor" class="view" hidden aria-labelledby="editor-title">
+      <p class="eyebrow">EXPERIMENT / 新建记录</p><div class="section-heading"><h1 id="editor-title">先定义，再测量。</h1><button type="button" id="load-example">载入起始配置</button></div>
+      <p class="lede">常用参数在表单中填写；完整 JSON 覆盖所有高级选项。起始配置仅供编辑，载入不会发出模型请求。</p>
+      <div id="editor-error" class="error" role="alert" hidden></div><p id="editor-feedback" class="feedback" role="status"></p>
+      <form id="experiment-form">
+        <fieldset><legend><span>01</span> 服务与目标</legend><div class="form-grid">
+          <label>实验名称<input name="name" required maxlength="128" placeholder="例如：长上下文基线"></label>
+          <label>模型名称<input name="endpoint.model" required placeholder="服务中的模型 ID"></label>
+          <label class="wide">OpenAI 兼容服务地址<input name="endpoint.base_url" type="url" required placeholder="http://127.0.0.1:8000/v1"></label>
+          <label>密钥环境变量名<input name="endpoint.api_key_env" placeholder="例如：MODEL_API_KEY" autocomplete="off"><small>只填写变量名，密钥由服务进程读取。</small></label>
+          <label>上下文长度（tokens，可空）<input name="endpoint.context_length" type="number" min="1" placeholder="未知"></label>
+          <label>目标类型<select name="goals.mode"><option value="offline">离线吞吐</option><option value="online">在线响应</option></select></label>
+          <label>最低吞吐（req/s，可空）<input name="goals.min_requests_per_s" type="number" min="0.001" step="any" placeholder="未设置"></label>
+          <label>端到端 P95 上限（ms）<input name="goals.max_p95_e2e_ms" type="number" min="0.001" step="any" placeholder="未设置"></label>
+          <label>TTFT P95 上限（ms）<input name="goals.max_p95_ttft_ms" type="number" min="0.001" step="any" placeholder="未设置"></label>
+          <label>TPOT P95 上限（ms/token）<input name="goals.max_p95_tpot_ms" type="number" min="0.001" step="any" placeholder="未设置"></label>
+          <label>最大错误率（0—1）<input name="goals.max_error_rate" type="number" min="0" max="1" step="any" value="0"></label>
+          <label class="wide">环境声明（JSON）<textarea name="endpoint.environment" rows="3" spellcheck="false">{}</textarea><small>填写硬件、并行策略、引擎版本等非秘密信息。比较与复测会保留这些差异。</small></label>
+        </div><div class="inline-actions"><button type="button" id="preflight">服务预检</button><small>显式确认后才发送有限生成请求；实验不会隐式预检。</small></div><pre id="preflight-result" class="output" hidden aria-live="polite"></pre></fieldset>
+
+        <fieldset><legend><span>02</span> 数据集与流量</legend>
+          <div class="file-row"><label class="file-label">导入 JSONL 数据集<input id="dataset-file" type="file" accept=".jsonl,.ndjson,.json,text/plain,application/json"></label><small>每行一个 {id, messages, category, max_tokens?}；本地读取，整份请求不超过 2 MiB。</small></div>
+          <label>样本 JSONL<textarea id="dataset-jsonl" rows="6" spellcheck="false" placeholder='{"id":"sample-1","messages":[{"role":"user","content":"你的问题"}],"category":"default"}'></textarea></label>
+          <div class="form-grid"><label class="wide">本地 tokenizer 目录（可空）<input name="tokenizer_path" placeholder="仅使用已安装的本地 tokenizer"><small>留空时 token 长度为未知，字符数不能代替 token 数。</small></label></div>
+          <button type="button" id="profile">生成数据画像</button><pre id="profile-result" class="output" hidden aria-live="polite"></pre>
+          <div class="form-grid spaced">
+            <label>负载模式<select name="load.mode"><option value="concurrency">固定并发</option><option value="rate">目标到达速率</option></select></label>
+            <label>并发数<input name="load.concurrency" type="number" min="1" value="1" required></label>
+            <label>到达速率（req/s）<input name="load.rate" type="number" min="0.001" step="any" value="1" required></label>
+            <label>每点测量请求数<input name="load.count" type="number" min="1" value="10" required></label>
+            <label>每点预热请求数<input name="load.warmup" type="number" min="0" value="0" required></label>
+            <label>重复次数<input name="load.repeats" type="number" min="1" max="20" value="1" required></label>
+            <label>扫描点（逗号分隔）<input name="load.scan" placeholder="例如：1, 2, 4"><small>扫描当前模式的并发或 rate；每点独立记录。</small></label>
+            <label>随机种子<input name="load.seed" type="number" value="42" required></label>
+            <label class="wide">类别混合比例（JSON）<textarea name="load.mix" rows="2" spellcheck="false">{}</textarea></label>
+          </div>
+        </fieldset>
+        <fieldset><legend><span>03</span> 生成与质量</legend><div class="form-grid">
+          <label>每请求最大输出（tokens）<input name="generation.max_tokens" type="number" min="1" value="128" required></label>
+          <label>Temperature<input name="generation.temperature" type="number" min="0" max="2" step="any" value="0" required></label>
+          <label>Top P<input name="generation.top_p" type="number" min="0.001" max="1" step="any" value="1" required></label>
+          <label>缓存条件<select name="cache_condition"><option value="unknown">未知</option><option value="declared_cold">声明为冷缓存</option><option value="declared_warm">声明为热缓存</option></select></label>
+          <label class="check"><input name="generation.stream" type="checkbox" checked>流式响应（SSE）</label>
+          <label class="check"><input name="protocol_fixture" type="checkbox">协议替身实验（不代表模型性能）</label>
+          <label>质量模式<select name="quality.mode"><option value="rules">业务规则</option><option value="manual">人工标签</option><option value="none">不评估（质量未知）</option></select></label>
+          <label>最低质量通过率（0—1）<input name="goals.min_quality_pass_rate" type="number" min="0" max="1" step="any" value="1" required></label>
+          <label>最低响应字符数<input name="quality.min_chars" type="number" min="0" value="1" required></label>
+          <label>必需文本（JSON 数组）<textarea name="quality.required_text" rows="2" spellcheck="false">[]</textarea></label>
+          <label class="check"><input name="quality.require_json" type="checkbox">要求合法 JSON 输出</label>
+          <label class="check"><input name="quality.reject_truncated" type="checkbox" checked>截断响应判为质量不通过</label>
+          <label class="wide">必需 JSON 字段（JSON 数组）<textarea name="quality.json_fields" rows="2" spellcheck="false">[]</textarea></label>
+        </div></fieldset>
+        <fieldset><legend><span>04</span> 观测与安全预算</legend><p class="muted">预算覆盖整个计划：扫描点 × 重复 ×（测量 + 预热）。到达事件被客户端拒绝时单独记录，不算模型服务错误。</p><div class="form-grid">
+          <label>总请求上限<input name="safety.max_requests" type="number" min="1" value="1000" required></label>
+          <label>并发上限<input name="safety.max_concurrency" type="number" min="1" value="64" required></label>
+          <label>计划总时限（s）<input name="safety.max_duration_s" type="number" min="0.001" step="any" value="300" required></label>
+          <label>单请求超时（s）<input name="safety.request_timeout_s" type="number" min="0.001" step="any" value="30" required></label>
+          <label>计划输出上限（tokens）<input name="safety.max_output_tokens" type="number" min="1" value="128000" required></label>
+          <label>单响应上限（bytes）<input name="safety.max_response_bytes" type="number" min="1" value="2097152" required></label>
+          <label>观测间隔（s）<input name="telemetry.interval_s" type="number" min="0.1" step="any" value="1" required></label>
+          <label class="wide">Prometheus 观测源（JSON 数组）<textarea name="telemetry.sources" rows="5" spellcheck="false">[]</textarea><small>每源填写 name、url、api_key_env 与 mappings；映射保留 key / metric / kind / scale / labels / aggregation。空数组表示未配置观测。</small></label>
+          <label class="wide">实验备注<textarea name="notes" rows="3" maxlength="4096" placeholder="记录本次调整、预期效果与混杂因素"></textarea></label>
+        </div></fieldset>
+        <div class="advanced"><button type="button" id="toggle-json" aria-expanded="false" aria-controls="advanced-panel">展开高级 JSON</button><div id="advanced-panel" hidden><p class="muted">完整 ExperimentSpec；支持 generation.extra、deadline_s、target_requests 等高级项。修改后先应用，再启动。</p><label>完整实验 JSON<textarea id="spec-json" rows="24" spellcheck="false"></textarea></label><button type="button" id="apply-json">应用 JSON</button></div></div>
+        <div class="submit-bar"><div><strong id="plan-estimate">填写配置以确认计划预算</strong><small>启动即授权本次有界实验。服务预检有独立消耗。</small></div><button class="primary" type="submit" id="submit">启动实验计划 <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </section>
+
+    <section id="view-detail" class="view" hidden aria-labelledby="detail-title">
+      <p class="eyebrow">EXPERIMENT / 测量记录</p><div class="section-heading"><h1 id="detail-title">实验详情</h1><span id="detail-status" class="badge"></span></div><p id="detail-meta" class="mono muted"></p>
+      <div class="inline-actions"><button type="button" id="cancel" class="danger" hidden>停止实验计划</button><button type="button" id="clone-run">复制配置准备复测</button><button type="button" id="refresh-detail">刷新结果</button></div>
+      <div id="progress-area" class="panel"><label for="run-progress">实验进度</label><progress id="run-progress" max="1"></progress><span id="progress-text">未知</span><details><summary>查看进度明细</summary><pre id="progress-details" class="output" hidden></pre></details></div>
+      <p id="detail-error" class="error" role="alert" hidden></p><div id="reliability" class="notice"></div>
+      <section id="sweep-panel" class="panel" hidden>
+        <div class="section-heading"><h2>计划扫描</h2><button id="load-sweep" type="button" aria-expanded="false" aria-controls="sweep-result">扫描曲线</button></div>
+        <p class="muted">查看同一计划的独立扫描点与重复实验。仅标记已测达标点，不外推点间容量。</p>
+        <div id="sweep-result" hidden>
+          <p id="sweep-assessment" class="notice"></p>
+          <div id="sweep-chart"></div>
+          <div class="table-scroll"><table id="sweep-table">
+            <caption>已测负载点；重复实验显示各次统计量的算术均值，P95 不重新合并计算。</caption>
+            <thead><tr><th id="sweep-variable">扫描点</th><th>重复次数</th><th>吞吐 req/s</th><th>有效吞吐 req/s</th><th>各次 P95 均值 ms</th><th>错误率</th><th>资格与限制</th></tr></thead>
+            <tbody></tbody>
+          </table></div>
+          <p id="sweep-warnings" class="notice"></p>
+        </div>
+      </section>
+      <div id="metrics" class="metric-grid"></div><p class="caption">TTFT = 首个可观测输出块；TPOT = 基于 usage 的均摊估计（ms/token），不是 ITL。非流式与缺失数据显式标为未知。</p>
+      <div class="section-heading"><h2>性能口径与类别</h2></div><div class="table-scroll"><table id="category-table"><caption>按类别拆分的测量窗口</caption><thead><tr><th>类别</th><th>已发送</th><th>吞吐 req/s</th><th>E2E P95 ms</th><th>TTFT P95 ms</th></tr></thead><tbody></tbody></table></div><details><summary>全部指标、分位数与定义</summary><pre id="metric-details" class="output"></pre></details>
+      <div class="detail-columns"><section class="panel"><h2>质量与目标</h2><div id="quality"></div><pre id="goals" class="output"></pre><label class="file-label">导入人工质量标签<input id="labels-file" type="file" accept=".json,application/json"></label><small>JSON 对象：{request_id: "pass" | "fail" | "unknown"}；只匹配本次请求。</small><p id="labels-feedback" role="status"></p></section><section class="panel"><h2>资源观测</h2><p class="muted">保留原始名称、标签、单位与时间。缺失观测不等于零。</p><pre id="telemetry" class="output"></pre></section></div>
+      <section class="panel"><h2>证据与调整建议</h2><div id="recommendations"></div></section>
+      <section class="panel">
+        <h2>关联复测</h2>
+        <p class="muted">选择基线对应的候选记录，明确改善标准。默认需要一项已记录的模型/环境变更；也可显式声明一次有界的并发或到达速率调整，其他条件保持一致。</p>
+        <div class="form-grid">
+          <label>复测候选实验<select id="retest-candidate"><option value="">选择已记录的实验</option></select></label>
+          <label>判定指标<select id="retest-metric">
+            <option value="requests_per_s">请求吞吐 req/s</option><option value="goodput_per_s">有效吞吐 req/s</option>
+            <option value="output_tokens_per_s">输出吞吐 tokens/s</option><option value="input_tokens_per_s">输入吞吐 tokens/s</option>
+            <option value="e2e_ms.p95">E2E P95 时延 ms</option><option value="ttft_ms.p95">TTFT P95 ms</option>
+            <option value="tpot_ms.p95">TPOT P95 ms/token</option><option value="error_rate">错误率</option>
+          </select></label>
+          <label>期望方向<select id="retest-direction"><option value="increase">增加</option><option value="decrease">降低</option></select></label>
+          <label>最小相对改善（比例）<input id="retest-change" type="number" min="0" step="any" value="0"></label>
+          <label class="wide">允许的单一变更<select id="retest-field"><option value="">已记录的一项模型 / 环境变更</option><option value="load.concurrency">并发数 load.concurrency</option><option value="load.rate">到达速率 load.rate</option></select><small>并发/rate 复测是负载调优，不是同负载下的公平模型排名。前后值必须匹配快照，且不允许其他混杂变更。</small></label>
+          <label>变更前的值<input id="retest-before" type="number" min="0.001" step="any" placeholder="并发或 req/s"></label>
+          <label>变更后的值<input id="retest-after" type="number" min="0.001" step="any" placeholder="并发或 req/s"></label>
+        </div>
+        <button type="button" id="evaluate-retest">评估关联复测</button>
+        <div id="retest-result" class="output" aria-live="polite"></div>
+      </section>
+      <section class="panel"><h2>请求审计与配置快照</h2><label class="check"><input type="checkbox" id="raw-opt-in">仅在本机查看响应原文</label><small>原文可能包含敏感内容；默认不渲染。取消勾选或切换实验即清除视图。分享请使用下方脱敏报告。</small><pre id="raw-responses" class="output" hidden></pre><details><summary>请求审计（不含输入与响应原文）</summary><pre id="request-audit" class="output"></pre></details><details><summary>本地配置快照与数据画像</summary><pre id="snapshot" class="output"></pre></details></section>
+      <div class="export-bar"><div><strong>带走证据，保留边界。</strong><small>脱敏报告默认移除输入/输出原文、凭据、私有 URL 与错误原文。</small></div><div id="exports" class="inline-actions"></div></div>
+    </section>
+
+    <section id="view-compare" class="view" hidden aria-labelledby="compare-title"><p class="eyebrow">COMPARE / 条件与差异</p><h1 id="compare-title">放在同一把尺子上。</h1><p class="lede">选择 2—32 个实验，比较模型或配置。数据、生成、负载与质量目标必须对齐；质量未知、未完成和协议替身不能证明胜出。</p><div id="compare-candidates" class="panel"></div><button id="compare" class="primary" type="button">比较所选实验</button><div id="compare-result" class="output" aria-live="polite"></div></section>
+    <footer class="main-footer"><span>LLM PERFORMANCE WORKBENCH</span><span>本地实验 · 可追溯记录 · 有证据的建议</span></footer>
+  </main>
+  <dialog id="preflight-dialog" aria-labelledby="preflight-title"><form method="dialog"><p class="eyebrow">BOUNDED PREFLIGHT</p><h2 id="preflight-title">确认服务预检</h2><p>将获取模型列表，并执行最多 <strong>2 次生成</strong>（同步 / 流式各一次），每次最多 8 个输出 tokens，共最多 <strong>16</strong> 个输出 tokens。</p><p class="muted">这是独立于实验计划的消耗，不会自动重试或修改模型服务。</p><p id="preflight-target" class="mono"></p><div class="inline-actions"><button value="cancel">返回编辑</button><button type="button" id="confirm-preflight" class="primary">确认预检</button></div></form></dialog>
+</body>
+</html>

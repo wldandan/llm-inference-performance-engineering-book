@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-perf-workbench"
+version = "0.1.0"
+description = "Local, evidence-driven LLM inference performance experiments powered by EvalScope"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = ["evalscope[perf]==1.12.0", "fastapi==0.141.1", "uvicorn==0.53.0", "httpx==0.28.1", "pydantic==2.13.5", "prometheus-client>=0.21,<1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.12,<1", "playwright>=1.50,<2"]
+
+[project.scripts]
+perfworkbench = "perfworkbench.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["perfworkbench*"]
+
+[tool.setuptools.package-data]
+perfworkbench = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: real EvalScope and local HTTP integration", "e2e: browser workflow"]
+
+[tool.coverage.run]
+source = ["perfworkbench"]
+parallel = true
+patch = ["subprocess"]
+sigterm = true
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
