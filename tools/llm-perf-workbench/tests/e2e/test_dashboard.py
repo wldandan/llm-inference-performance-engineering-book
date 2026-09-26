@@ -510,6 +510,141 @@ def test_simple_editor_rate_scan_summary_matches_actual_plan(browser_page, api_f
 
 
 @pytest.mark.e2e
+def test_parameter_tips_cover_load_fields_with_examples_and_preserve_values(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    before = page.locator("#spec-json").input_value()
+    explanations = {
+        "负载模式": "固定并发",
+        "并发数": "Batch Size",
+        "到达速率（req/s）": "固定并发模式下不生效",
+        "每点测量请求数": "每个测试档位",
+        "每点预热请求数": "不计入正式性能指标",
+        "重复次数": "每轮",
+        "扫描点（逗号分隔）": "1、2、4",
+        "随机种子": "不保证模型",
+        "类别混合比例（JSON）": '"classify": 0.3',
+    }
+    expect(page.locator("#load-options .help-trigger")).to_have_count(len(explanations))
+    for title, explanation in explanations.items():
+        button = page.get_by_role("button", name=f"{title}说明", exact=True)
+        assert button.get_attribute("type") == "button"
+        assert button.locator("xpath=ancestor::label").count() == 0
+        button.click()
+        tip = page.get_by_role("tooltip")
+        expect(tip).to_have_count(1)
+        expect(tip).to_contain_text(explanation)
+        control = page.get_by_label(title, exact=True)
+        expect(control).to_have_count(1)
+        assert tip.get_attribute("id") in control.get_attribute("aria-describedby").split()
+        expect(button).to_have_attribute("aria-describedby", tip.get_attribute("id"))
+        page.keyboard.press("Escape")
+    expect(page.locator("#spec-json")).to_have_value(before)
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_parameter_tips_hover_read_and_keyboard_escape(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    button = page.get_by_role("button", name="每点测量请求数说明", exact=True)
+    button.hover()
+    tip = page.get_by_role("tooltip")
+    expect(tip).to_be_visible()
+    tip.hover()
+    expect(tip).to_be_visible()
+    page.mouse.move(0, 0)
+    expect(tip).not_to_be_visible()
+    button.focus()
+    expect(page.get_by_role("tooltip")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    expect(button).to_be_focused()
+    page.keyboard.press("Tab")
+    page.keyboard.press("Shift+Tab")
+    expect(button).to_be_focused()
+    expect(page.get_by_role("tooltip")).to_be_visible()
+    page.keyboard.press("Tab")
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_parameter_tips_click_toggle_outside_click_and_view_change(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    button = page.get_by_role("button", name="类别混合比例（JSON）说明", exact=True)
+    button.click()
+    expect(page.get_by_role("tooltip")).to_contain_text("不是把")
+    expect(page.get_by_role("tooltip")).to_contain_text("{}")
+    button.click()
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    button.click()
+    page.locator("#preset-heading").click()
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    button.click()
+    page.locator("#load-options > summary").click()
+    page.locator("#load-options > summary").click()
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    button.click()
+    page.locator('nav [data-view="overview"]').click()
+    page.locator('nav [data-view="editor"]').click()
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_parameter_tips_close_when_label_focuses_input(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    page.get_by_role("button", name="每点测量请求数说明", exact=True).hover()
+    expect(page.get_by_role("tooltip")).to_be_visible()
+    control = page.get_by_label("每点测量请求数", exact=True)
+    page.locator(f'label[for="{control.get_attribute("id")}"]').click()
+    expect(control).to_be_focused()
+    expect(page.get_by_role("tooltip")).to_have_count(0)
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_parameter_tips_touch_and_narrow_viewport(browser_page, api_fixture):
+    url, state = api_fixture
+    context = browser_page.context.browser.new_context(
+        viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True
+    )
+    try:
+        page = context.new_page()
+        page.goto(url)
+        page.locator('nav [data-view="editor"]').tap()
+        page.locator("#advanced-settings > summary").tap()
+        page.locator("#load-options > summary").tap()
+        button = page.get_by_role("button", name="类别混合比例（JSON）说明", exact=True)
+        button.tap()
+        tip = page.get_by_role("tooltip")
+        expect(tip).to_be_visible()
+        box = tip.bounding_box()
+        assert 0 <= box["x"] and box["x"] + box["width"] <= 390
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        button.tap()
+        expect(page.get_by_role("tooltip")).to_have_count(0)
+        assert state["calls"] == []
+    finally:
+        context.close()
+
+
+@pytest.mark.e2e
 def test_initial_empty_state_and_mobile_keyboard(browser_page, api_fixture):
     page = browser_page
     url, state = api_fixture
@@ -554,7 +689,7 @@ def test_form_advanced_json_sweep_submit_and_cancel(browser_page, api_fixture):
     url, state = api_fixture
     open_editor(page, url)
     page.get_by_label("模型名称", exact=True).fill("my-local-model")
-    page.get_by_label("扫描点（逗号分隔）").fill("1, 2")
+    page.get_by_label("扫描点（逗号分隔）", exact=True).fill("1, 2")
     page.get_by_role("button", name="展开高级 JSON").click()
     editor = page.get_by_label("完整实验 JSON")
     spec = json.loads(editor.input_value())
@@ -792,7 +927,7 @@ def test_real_manager_browser_preflight_run_labels_and_sanitized_download(browse
     page.get_by_label("实验名称", exact=True).fill("真实执行链路·协议验证")
     page.get_by_label("模型名称", exact=True).fill("browser-protocol-fixture")
     page.get_by_label("OpenAI 兼容服务地址").fill(endpoint)
-    page.get_by_label("每点测量请求数").fill("2")
+    page.get_by_label("每点测量请求数", exact=True).fill("2")
     page.get_by_label("每请求最大输出（tokens）").fill("8")
     page.get_by_label("计划总时限（s）").fill("60")
     page.get_by_label("协议替身实验（不代表模型性能）").check()
@@ -841,9 +976,9 @@ def test_real_manager_browser_cancel_sweep_and_inspect_plan(browser_page, real_w
     page.get_by_role("button", name="载入起始配置", exact=True).click()
     expect(page.get_by_label("实验名称", exact=True)).to_have_value("baseline")
     page.get_by_label("OpenAI 兼容服务地址").fill(endpoint)
-    page.get_by_label("每点测量请求数").fill("4")
+    page.get_by_label("每点测量请求数", exact=True).fill("4")
     page.get_by_label("每请求最大输出（tokens）").fill("8")
-    page.get_by_label("扫描点（逗号分隔）").fill("1, 2")
+    page.get_by_label("扫描点（逗号分隔）", exact=True).fill("1, 2")
     page.get_by_label("协议替身实验（不代表模型性能）").check()
     page.get_by_role("button", name="启动实验计划", exact=True).click()
     page.get_by_role("button", name="扫描曲线", exact=True).click()

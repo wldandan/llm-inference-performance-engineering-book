@@ -36,6 +36,115 @@
     if (className) node.className = className;
     return node;
   };
+  const parameterHelp = {
+    "load.mode": [
+      "选择请求如何发给模型服务。固定并发：同时保持指定数量的请求在途，一个结束后再补一个，直到完成本轮请求。目标到达速率：按设定的平均速度发起新请求，不等待上一条完成。",
+      "例如：并发 4 表示最多同时等待 4 个响应；到达速率 2 req/s 表示平均每秒发起 2 个新请求，不代表每秒能完成 2 个。",
+    ],
+    "load.concurrency": [
+      "固定并发模式下，客户端最多同时进行的请求数。一个请求结束后，再补发后续请求；不是每秒请求数，也不是模型的 Batch Size 或显卡数量。",
+      "例如：测量 10 次、并发 2，表示这 10 次请求最多同时跑 2 个，不是发送 20 次。到达速率模式的在途限制由安全设置中的“并发上限”控制。",
+    ],
+    "load.rate": [
+      "仅用于“目标到达速率”模式，单位 req/s，表示平均每秒计划发起多少个新请求。固定并发模式下不生效。",
+      "例如：2 表示平均每秒发起 2 个请求，不代表服务每秒完成 2 个。服务变慢时在途请求会增多；触及安全上限时，部分请求可能被客户端拒绝。",
+    ],
+    "load.count": [
+      "“每点”就是每个测试档位，例如并发 1、2、4 是三个点。这里填写每个点、每轮正式测量的请求总数，不包含预热，也不再乘以并发数。",
+      "例如：扫描 1、2、4，每点 10 次、重复 1 轮，共测量 30 次；不填扫描点就只测当前一个档位。数据集不足时会重复取样，10 次请求不一定是 10 条不同数据。",
+    ],
+    "load.warmup": [
+      "每个测试档位在每轮正式测量前先发送的请求数，用来让服务进入运行状态。预热会消耗时间和 token，但不计入正式性能指标。",
+      "例如：每点测量 10 次、预热 2 次，每点每轮实际发送 12 次。填 0 表示不预热；预热不等于保证 KV / 前缀缓存命中。",
+    ],
+    "load.repeats": [
+      "每个测试档位完整运行多少轮，用来观察结果是否稳定。每轮都会重新执行该点的预热与正式测量，分别留下记录。",
+      "例如：3 个扫描点，每点测量 10 次、预热 2 次，重复 2 轮，共发送 3 × (10 + 2) × 2 = 72 次，其中正式测量 60 次。",
+    ],
+    "load.scan": [
+      "一次比较多个负载档位，用逗号分隔。固定并发模式扫描并发数，目标到达速率模式扫描 req/s；各点独立测量。填写后以扫描值代替对应的单一数值。",
+      "例如：填 1, 2, 4，在固定并发模式下依次测并发 1、2、4；每点测量数和重复次数对每个档位都生效。留空则只测当前并发数或到达速率。",
+    ],
+    "load.seed": [
+      "用于数据抽样、打乱顺序等实验随机过程。同一数据集与配置使用相同种子，有助于复现实验请求序列；通常保留 42 即可。",
+      "它不是模型生成参数，不保证模型每次输出完全相同，也不保证耗时相同。",
+    ],
+    "load.mix": [
+      "控制不同类别在请求数量中的比例。类别名必须对应数据集的 category 字段，数值是正的相对权重，不是 token 比例，也不是把多个任务合并为一次模型请求。",
+      '例如：{"classify": 0.3, "summary": 0.7}，测量 100 次时分配 30 次分类、70 次总结；填 3 和 7 也表示同样比例，小样本会取整。类别内样本不足时会重复取样。',
+      "保留 {}：不指定类别权重，按原数据顺序取样，不足时循环，再打乱顺序；并非各类别平均分配。这里也不会建立“先分类、再总结”的工作流依赖。",
+    ],
+  };
+  let activeHelp = null;
+  function closeParameterHelp() {
+    if (activeHelp) activeHelp.tip.hidden = true;
+    activeHelp = null;
+  }
+  function showParameterHelp(entry) {
+    if (activeHelp === entry) return;
+    closeParameterHelp();
+    entry.pinned = false;
+    entry.tip.hidden = false;
+    activeHelp = entry;
+  }
+  function uniqueId(base) {
+    let id = base;
+    for (let suffix = 2; document.getElementById(id); suffix += 1) id = `${base}-${suffix}`;
+    return id;
+  }
+  function decorateParameterHelp() {
+    for (const [name, paragraphs] of Object.entries(parameterHelp)) {
+      const control = form.querySelector(`[name="${name}"]`);
+      if (!control || control.closest(".help-field")) continue;
+      const label = control.closest("label");
+      if (!label) continue;
+      const title = [...label.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent).join("").trim();
+      const children = [...label.children];
+      const field = element("div", null, `${label.className} help-field`.trim());
+      const row = element("div", null, "help-label-row");
+      const button = element("button", "?", "help-trigger");
+      const tip = element("div", null, "parameter-tip");
+      const idBase = name.replaceAll(".", "-");
+      if (!control.id) control.id = uniqueId(`field-${idBase}`);
+      tip.id = uniqueId(`help-${idBase}`);
+      tip.setAttribute("role", "tooltip");
+      tip.hidden = true;
+      tip.append(element("strong", title), ...paragraphs.map((text) => element("p", text)));
+      button.type = "button";
+      button.setAttribute("aria-label", `${title}说明`);
+      button.setAttribute("aria-describedby", tip.id);
+      control.setAttribute("aria-describedby", [control.getAttribute("aria-describedby"), tip.id].filter(Boolean).join(" "));
+      label.replaceWith(field);
+      label.className = "";
+      label.htmlFor = control.id;
+      label.replaceChildren(document.createTextNode(title));
+      row.append(label, button, tip);
+      field.append(row, ...children);
+      const entry = {button, tip, field, pinned: false};
+      button.addEventListener("pointerenter", (event) => {
+        if (event.pointerType !== "touch") showParameterHelp(entry);
+      });
+      button.addEventListener("focus", () => showParameterHelp(entry));
+      button.addEventListener("click", () => {
+        // Focus precedes a first click/tap: pin that newly opened tip, rather than closing it.
+        if (activeHelp === entry && entry.pinned) closeParameterHelp();
+        else { showParameterHelp(entry); entry.pinned = true; }
+      });
+      button.addEventListener("blur", () => { if (activeHelp === entry) closeParameterHelp(); });
+      field.addEventListener("pointerleave", () => {
+        if (activeHelp === entry && !entry.pinned && document.activeElement !== button) closeParameterHelp();
+      });
+    }
+  }
+  decorateParameterHelp();
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeParameterHelp(); });
+  document.addEventListener("pointerdown", (event) => {
+    if (activeHelp && !activeHelp.button.contains(event.target) && !activeHelp.tip.contains(event.target)) closeParameterHelp();
+  });
+  form.addEventListener("toggle", (event) => {
+    if (activeHelp && !event.target.open && event.target.contains(activeHelp.field)) closeParameterHelp();
+  }, true);
   function showError(target, error) {
     const node = $(target);
     node.textContent = error ? (error.message || String(error)) : "";
@@ -87,6 +196,7 @@
     finally { if (button) { button.disabled = false; button.removeAttribute("aria-busy"); } }
   }
   function navigate(view) {
+    closeParameterHelp();
     state.view = view;
     $$(".view").forEach((node) => { node.hidden = node.id !== `view-${view}`; });
     $$("nav [data-view]").forEach((button) => {
