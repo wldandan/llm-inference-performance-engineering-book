@@ -15,7 +15,8 @@
   const jsonFields = new Set(["endpoint.environment", "load.mix", "quality.required_text", "quality.json_fields", "telemetry.sources"]);
   const nullableFields = new Set(["endpoint.api_key_env", "endpoint.context_length", "tokenizer_path",
     "goals.min_requests_per_s", "goals.max_p95_e2e_ms", "goals.max_p95_ttft_ms", "goals.max_p95_tpot_ms"]);
-  const state = {spec: null, runs: [], current: null, view: "overview", jsonDirty: false, polling: false, endpoint: null, sweepPlan: null};
+  const state = {spec: null, runs: [], current: null, view: "overview", jsonDirty: false, polling: false, endpoint: null, sweepPlan: null,
+    preset: "quick", datasetSource: "内置示例"};
   const pretty = (value) => JSON.stringify(value, null, 2);
   const valueText = (value) => value == null ? "未知" : typeof value === "object" ? pretty(value) : String(value);
   const statusText = (value) => statuses[value] || value || "未知";
@@ -39,6 +40,7 @@
     const node = $(target);
     node.textContent = error ? (error.message || String(error)) : "";
     node.hidden = !error;
+    if (error && target === "#editor-error") node.scrollIntoView({block: "nearest"});
   }
   function output(target, data) {
     const node = $(target);
@@ -77,7 +79,11 @@
     if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
     showError(errorTarget, null);
     try { await operation(); }
-    catch (error) { showError(errorTarget, error); }
+    catch (error) {
+      if (error.field && errorTarget === "#editor-error") revealField(error.field);
+      if (errorTarget === "#editor-error") invalidateEstimate(error.message);
+      showError(errorTarget, error);
+    }
     finally { if (button) { button.disabled = false; button.removeAttribute("aria-busy"); } }
   }
   function navigate(view) {
@@ -98,7 +104,7 @@
   $$('[data-view]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.view)));
   $(".brand").addEventListener("click", (event) => { event.preventDefault(); navigate("overview"); });
 
-  function readJSONL(text) {
+  function readJSONL(text, allowEmpty = false) {
     bounded(text, "数据集");
     const ids = new Set();
     const rows = [];
@@ -113,17 +119,27 @@
       ids.add(row.id);
       rows.push(row);
     });
-    if (!rows.length) throw new Error("请导入 JSONL 数据集，或填写至少一条样本。");
+    if (!rows.length && !allowEmpty) throw new Error("请导入 JSONL 数据集，或填写至少一条样本。");
     return rows;
   }
   function baseSpec() {
     return {name: "", endpoint: {}, dataset: [], load: {}, generation: {extra: {}}, goals: {deadline_s: null, target_requests: null},
       quality: {}, safety: {}, telemetry: {}, cache_condition: "unknown", tokenizer_path: null, notes: "", protocol_fixture: false};
   }
-  function readForm() {
+  function requireAppliedJSON() {
     if (state.jsonDirty) throw new Error("高级 JSON 尚未应用。请先点击“应用 JSON”，以保留本次编辑。");
+  }
+  function revealField(input) {
+    for (let parent = input.parentElement; parent; parent = parent.parentElement) {
+      if (parent.tagName === "DETAILS") parent.open = true;
+    }
+    input.focus();
+  }
+  function readForm(allowEmpty = false, replacementDataset = null) {
+    requireAppliedJSON();
     const spec = structuredClone(state.spec || baseSpec());
     for (const input of form.querySelectorAll("[name]")) {
+      try {
       const key = input.name;
       let value;
       if (input.type === "checkbox") value = input.checked;
@@ -139,50 +155,109 @@
         if (!input.value.trim() || !Number.isFinite(value)) throw new Error(`${key} 需要有效数字。`);
       } else value = input.value.trim();
       set(spec, key, value);
+      } catch (error) {
+        error.field = input;
+        throw error;
+      }
     }
-    spec.dataset = readJSONL($("#dataset-jsonl").value);
+    try { spec.dataset = replacementDataset ?? readJSONL($("#dataset-jsonl").value, allowEmpty); }
+    catch (error) { error.field = $("#dataset-jsonl"); throw error; }
     return spec;
   }
-  function fillForm(spec) {
+  function fillForm(spec, preset = null, source = "配置中的数据") {
     if (!spec || typeof spec !== "object" || Array.isArray(spec) || !Array.isArray(spec.dataset)) throw new Error("完整 JSON 需要 ExperimentSpec 对象及 dataset 数组。");
     for (const key of ["endpoint", "load", "generation", "goals", "quality", "safety", "telemetry"]) {
-      if (!spec[key] || typeof spec[key] !== "object" || Array.isArray(spec[key])) throw new Error(`完整 JSON 缺少 ${key} 对象，请从起始配置编辑。`);
+      if (!spec[key] || typeof spec[key] !== "object" || Array.isArray(spec[key])) throw new Error(`完整 JSON 缺少 ${key} 对象，请检查配置。`);
+    }
+    // Prepare every value before touching the current form or its unapplied draft.
+    const json = bounded(pretty(spec), "配置");
+    const rows = spec.dataset.map((row) => JSON.stringify(row)).join("\n");
+    readJSONL(rows, true);
+    if (!Array.isArray(spec.load.scan ?? [])) throw new Error("load.scan 必须是数组。");
+    const values = [...form.querySelectorAll("[name]")].map((input) => {
+      const value = get(spec, input.name);
+      if (input.type === "checkbox") return [input, value === true];
+      if (jsonFields.has(input.name)) return [input, pretty(value ?? (input.name.includes("sources") || input.name.includes("json_fields") || input.name.includes("required_text") ? [] : {}))];
+      if (input.name === "load.scan") return [input, (value || []).join(", ")];
+      return [input, value ?? ""];
+    });
+    for (const [input, value] of values) {
+      if (input.type === "checkbox") input.checked = value;
+      else input.value = value;
     }
     state.spec = structuredClone(spec);
     state.jsonDirty = false;
-    for (const input of form.querySelectorAll("[name]")) {
-      const value = get(spec, input.name);
-      if (input.type === "checkbox") input.checked = value === true;
-      else if (jsonFields.has(input.name)) input.value = pretty(value ?? (input.name.includes("sources") || input.name.includes("json_fields") || input.name.includes("required_text") ? [] : {}));
-      else if (input.name === "load.scan") input.value = (value || []).join(", ");
-      else input.value = value ?? "";
-    }
-    $("#dataset-jsonl").value = spec.dataset.map((row) => JSON.stringify(row)).join("\n");
-    $("#spec-json").value = pretty(spec);
+    state.preset = preset;
+    state.datasetSource = source;
+    $("#dataset-jsonl").value = rows;
+    $("#spec-json").value = json;
+    $("#json-hint").textContent = "当前 JSON 与表单一致。编辑后先应用，再启动。";
     updateEstimate(spec);
   }
+  function invalidateEstimate(message) {
+    $("#plan-estimate").textContent = "配置待确认 · 暂无有效预算预览";
+    $("#budget-status").textContent = message;
+    $("#run-settings-summary").textContent = "";
+  }
   function updateEstimate(spec) {
+    $("#dataset-summary").textContent = `${spec.dataset.length} 条 · ${state.datasetSource}`;
+    $("#preset-status").textContent = state.preset === "quick" ? "快速试跑" : state.preset === "baseline" ? "基线测量" : "自定义配置";
+    $$('[data-preset]').forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.preset === state.preset)));
+    const service = spec.endpoint.base_url === "http://127.0.0.1:11434/v1" ? "ollama" : spec.endpoint.base_url === "http://127.0.0.1:8000/v1" ? "vllm" : "custom";
+    $$('[data-service]').forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.service === service)));
+    if ([...form.querySelectorAll('input[type="number"]')].some((input) => !input.validity.valid)) {
+      invalidateEstimate("数值参数不完整或超出允许范围；请修正后再启动。");
+      return;
+    }
     const load = spec.load;
     const points = Math.max(1, load.scan?.length || 0) * load.repeats;
     const requests = (load.count + load.warmup) * points;
-    const tokens = requests * Math.max(...spec.dataset.map((row) => row.max_tokens || spec.generation.max_tokens));
+    const caps = spec.dataset.map((row) => row.max_tokens ?? spec.generation.max_tokens);
+    if (!caps.length || ![points, requests, ...caps].every((value) => typeof value === "number" && Number.isFinite(value) && value > 0)) {
+      invalidateEstimate("请补充有效数据与负载参数。");
+      return;
+    }
+    const tokens = requests * Math.max(...caps);
     $("#plan-estimate").textContent = `${number(points)} 个实验点 · 最多 ${number(requests)} 次请求 · ${number(tokens)} 输出 tokens 预留`;
+    const parallel = load.mode === "rate" ? `目标到达 ${load.scan?.length ? load.scan.join(" / ") : number(load.rate)} req/s · 在途上限 ${number(spec.safety.max_concurrency)}` : `并发 ${load.scan?.length ? load.scan.join(" / ") : load.concurrency}`;
+    const quality = spec.quality.mode === "manual" ? "质量待人工评价" : spec.quality.mode === "none" ? "质量未知（未评估）" : "质量按业务规则判断";
+    $("#run-settings-summary").textContent = `${parallel} · ${spec.generation.stream ? "流式（采集 TTFT / TPOT）" : "非流式（TTFT / TPOT 未知）"} · ${quality} · ${spec.telemetry.sources?.length ? "已配置资源观测" : "未配置 GPU / KV 观测"}${spec.protocol_fixture ? " · 协议替身，不代表模型性能" : ""}`;
+    const exceeds = requests > spec.safety.max_requests || tokens > spec.safety.max_output_tokens ||
+      Math.max(load.concurrency, ...(load.mode === "concurrency" ? load.scan || [] : [])) > spec.safety.max_concurrency;
+    $("#budget-status").textContent = `安全上限：${number(spec.safety.max_requests)} 次 / ${number(spec.safety.max_output_tokens)} 输出 tokens / ${number(spec.safety.max_duration_s)} 秒。${exceeds ? "当前计划超出预算：请显式选择预设，或在高级设置中调整预算。" : ""}`;
   }
   form.addEventListener("input", (event) => {
-    if (event.target.id === "spec-json") { state.jsonDirty = true; return; }
+    if (event.target.id === "spec-json") {
+      state.jsonDirty = true;
+      invalidateEstimate("JSON 尚未应用；应用后重新显示本次预算。");
+      return;
+    }
     if (state.jsonDirty || event.target.type === "file") return;
-    try { const spec = readForm(); updateEstimate(spec); $("#spec-json").value = pretty(spec); } catch { /* Incomplete fields are validated on explicit actions. */ }
+    if (event.target.id === "dataset-jsonl") state.datasetSource = "自定义数据";
+    if (/^(load|generation|safety)\./.test(event.target.name)) state.preset = null;
+    try { const spec = readForm(true); updateEstimate(spec); $("#spec-json").value = pretty(spec); }
+    catch (error) { invalidateEstimate(error.message); }
   });
   $("#load-example").addEventListener("click", () => action($("#load-example"), "#editor-error", async () => {
-    fillForm(await api("/api/example"));
+    requireAppliedJSON();
+    const spec = await api("/api/example");
+    requireAppliedJSON();
+    fillForm(spec);
     $("#editor-feedback").textContent = "起始配置已载入。请确认模型地址与数据内容；尚未发出模型请求。";
   }));
   $("#toggle-json").addEventListener("click", () => action(null, "#editor-error", async () => {
     const opening = $("#advanced-panel").hidden;
-    if (opening && !state.jsonDirty) $("#spec-json").value = pretty(readForm());
     $("#advanced-panel").hidden = !opening;
     $("#toggle-json").setAttribute("aria-expanded", String(opening));
     $("#toggle-json").textContent = opening ? "收起高级 JSON" : "展开高级 JSON";
+    if (opening && !state.jsonDirty) {
+      try {
+        $("#spec-json").value = pretty(readForm(true));
+        $("#json-hint").textContent = "可直接粘贴完整实验配置，修改后点击应用。";
+      } catch {
+        $("#json-hint").textContent = "当前表单有未完成或非法字段；下面保留上一次有效 JSON，可直接替换为完整配置。";
+      }
+    }
   }));
   $("#apply-json").addEventListener("click", () => action($("#apply-json"), "#editor-error", async () => {
     fillForm(parseJSON(bounded($("#spec-json").value, "配置"), "完整实验"));
@@ -194,16 +269,44 @@
     if (file.size > MAX_BYTES) throw new Error("文件超过 2 MiB，请缩小输入。");
     return file.text();
   }
+  $("#config-file").addEventListener("change", () => action(null, "#editor-error", async () => {
+    requireAppliedJSON();
+    const text = await readFile($("#config-file"));
+    if (text === null) return;
+    requireAppliedJSON();
+    fillForm(parseJSON(text, "实验配置"));
+    $("#editor-feedback").textContent = "配置已导入；保留原始参数与预算。请确认服务地址、模型与数据后再启动。";
+    $("#config-file").value = "";
+  }));
+  $$('[data-service]').forEach((button) => button.addEventListener("click", () => action(null, "#editor-error", async () => {
+    requireAppliedJSON();
+    const input = form.elements.namedItem("endpoint.base_url");
+    if (button.dataset.service === "custom") { input.focus(); input.select(); return; }
+    input.value = button.dataset.service === "ollama" ? "http://127.0.0.1:11434/v1" : "http://127.0.0.1:8000/v1";
+    input.dispatchEvent(new Event("input", {bubbles: true}));
+  })));
+  $$('[data-preset]').forEach((button) => button.addEventListener("click", () => action(null, "#editor-error", async () => {
+    const spec = readForm(true);
+    const baseline = button.dataset.preset === "baseline";
+    Object.assign(spec.load, {mode: "concurrency", count: baseline ? 50 : 5, warmup: baseline ? 1 : 0, concurrency: 1, repeats: 1, scan: []});
+    spec.generation.max_tokens = 256;
+    const requests = spec.load.count + spec.load.warmup;
+    const caps = spec.dataset.length ? spec.dataset.map((row) => row.max_tokens ?? 256) : [256];
+    if (!caps.every((value) => Number.isInteger(value) && value > 0)) throw new Error("样本 max_tokens 必须是正整数，未调整预算。");
+    Object.assign(spec.safety, {max_requests: requests, max_concurrency: 1, max_output_tokens: requests * Math.max(...caps)});
+    fillForm(spec, button.dataset.preset, state.datasetSource);
+    $("#editor-feedback").textContent = "已应用负载、默认输出上限及请求/并发/输出预算。数据、质量、时限和其他配置保持不变。";
+  })));
   $("#dataset-file").addEventListener("change", () => action(null, "#editor-error", async () => {
+    requireAppliedJSON();
     const text = await readFile($("#dataset-file"));
     if (text === null) return;
     const rows = readJSONL(text);
-    if (state.jsonDirty) throw new Error("请先应用高级 JSON，再导入数据集。");
-    $("#dataset-jsonl").value = rows.map((row) => JSON.stringify(row)).join("\n");
+    requireAppliedJSON();
+    const spec = readForm(false, rows);
+    fillForm(spec, state.preset, $("#dataset-file").files[0].name);
     $("#editor-feedback").textContent = `已导入 ${rows.length} 条样本。生成画像以查看长度、重复与类别。`;
-    const spec = readForm();
-    $("#spec-json").value = pretty(spec);
-    updateEstimate(spec);
+    $("#dataset-file").value = "";
   }));
   $("#profile").addEventListener("click", () => action($("#profile"), "#editor-error", async () => {
     const spec = readForm();
@@ -229,6 +332,12 @@
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     action($("#submit"), "#editor-error", async () => {
+      requireAppliedJSON();
+      const invalid = [...form.querySelectorAll("input, select, textarea")].find((input) => !input.validity.valid);
+      if (invalid) {
+        revealField(invalid);
+        throw new Error(`请检查 ${invalid.labels?.[0]?.textContent.trim() || invalid.name}：${invalid.validationMessage}`);
+      }
       const spec = readForm();
       const plan = await api("/api/runs", spec);
       state.spec = spec;
@@ -237,6 +346,10 @@
       await openRun(plan.run_ids[0]);
     });
   });
+
+  const starterQuestions = ["用两句话解释什么是大语言模型。", "简要说明 HTTP 请求和响应的关系。", "什么是缓存？请举一个后端开发的例子。", "将这句话概括为一个标题：系统每天收集技术文章，分类后生成主题报告。", "列出检查一个 API 服务是否就绪的两个方法。"];
+  $("#dataset-jsonl").value = starterQuestions.map((content, index) => JSON.stringify({id: `starter-${index + 1}`, category: "starter", messages: [{role: "user", content}]})).join("\n");
+  fillForm(readForm(), "quick", "内置示例");
 
   function badge(status) {
     const node = element("span", statusText(status), "badge");
@@ -462,6 +575,7 @@
     await openRun(state.current.id);
   }));
   $("#clone-run").addEventListener("click", () => action($("#clone-run"), "#detail-error", async () => {
+    requireAppliedJSON();
     fillForm(state.current.spec);
     $("#editor-feedback").textContent = `已复制基线 ${state.current.id}。请记录环境调整；启动将使用新的有界预算，完成后在基线详情中关联复测。`;
     navigate("editor");

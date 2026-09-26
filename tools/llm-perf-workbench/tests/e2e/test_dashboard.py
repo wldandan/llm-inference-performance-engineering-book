@@ -254,11 +254,259 @@ def browser_page():
         assert errors == [], errors
 
 
+def expand_editor_options(page):
+    for selector in [
+        "#advanced-settings",
+        "#connection-options",
+        "#load-options",
+        "#quality-options",
+        "#safety-options",
+        "#dataset-options",
+    ]:
+        if page.locator(selector).get_attribute("open") is None:
+            page.locator(f"{selector} > summary").click()
+
+
 def open_editor(page, url):
     page.goto(url)
     page.get_by_role("button", name="新建实验", exact=True).first.click()
+    expand_editor_options(page)
     page.get_by_role("button", name="载入起始配置", exact=True).click()
     expect(page.get_by_label("实验名称", exact=True)).to_have_value(SPEC["name"])
+
+
+@pytest.mark.e2e
+def test_simple_editor_starts_with_only_model_and_no_hidden_model_calls(browser_page, api_fixture):
+    from perfworkbench.config import ExperimentSpec
+
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expect(page.locator("#dataset-summary")).to_contain_text("5 条")
+    expect(page.locator('[name="endpoint.base_url"]')).to_have_value("http://127.0.0.1:11434/v1")
+    expect(page.locator('[name="load.scan"]')).not_to_be_visible()
+    expect(page.locator('[name="safety.max_requests"]')).not_to_be_visible()
+    assert page.locator("#experiment-form [name]:visible").count() <= 5
+    page.get_by_label("模型名称", exact=True).fill("qwen3:1.7b")
+    assert state["calls"] == []
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    expect(page.locator("#detail-status")).to_have_text("运行中")
+    payload = next(c[1] for c in state["calls"] if c[0] == "/api/runs")
+    spec = ExperimentSpec.model_validate(payload)
+    assert spec.load.count == 5 and spec.load.concurrency == 1 and spec.load.warmup == 0
+    assert spec.safety.max_requests == 5 and spec.safety.max_output_tokens == 1280
+    assert spec.quality.mode == "manual" and not spec.protocol_fixture
+    assert len(spec.dataset) == 5 and spec.name
+    assert all(c[0] != "/api/preflight" for c in state["calls"])
+
+
+@pytest.mark.e2e
+def test_simple_editor_json_opens_with_empty_dataset_and_preserves_draft(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    # Reproduce the reported empty-dataset path, independent of the new starter data.
+    page.locator("#dataset-jsonl").evaluate(
+        '(node) => { node.value = ""; node.dispatchEvent(new Event("input", {bubbles:true})); }'
+    )
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    expect(page.locator("#advanced-panel")).to_be_visible()
+    editor = page.get_by_label("完整实验 JSON")
+    editor.fill('{"unfinished":')
+    page.get_by_role("button", name="收起高级 JSON", exact=True).click()
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    expect(editor).to_have_value('{"unfinished":')
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_simple_editor_config_import_preserves_custom_contract_and_budgets(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    spec = copy.deepcopy(SPEC)
+    spec["generation"]["extra"] = {"seed": 71}
+    spec["goals"]["deadline_s"] = 21600
+    spec["load"]["scan"] = [1, 3]
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.locator("#config-file").set_input_files(
+        {"name": "experiment.json", "mimeType": "application/json", "buffer": json.dumps(spec).encode()}
+    )
+    expect(page.locator("#editor-feedback")).to_contain_text("配置已导入")
+    expect(page.locator("#preset-status")).to_contain_text("自定义")
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    assert json.loads(page.locator("#spec-json").input_value()) == spec
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    expect(page.locator("#detail-status")).to_have_text("运行中")
+    assert next(c[1] for c in state["calls"] if c[0] == "/api/runs") == spec
+
+
+@pytest.mark.e2e
+def test_simple_editor_preset_budget_honors_sample_caps(browser_page, api_fixture):
+    from perfworkbench.config import ExperimentSpec
+
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("local-model")
+    sample = {
+        "id": "long-output",
+        "messages": [{"role": "user", "content": "请总结这段技术说明。"}],
+        "category": "summary",
+        "max_tokens": 1024,
+    }
+    page.locator("#dataset-file").set_input_files(
+        {"name": "samples.jsonl", "mimeType": "application/jsonl", "buffer": json.dumps(sample).encode()}
+    )
+    expect(page.locator("#dataset-summary")).to_contain_text("1 条")
+    # Import does not silently increase existing safety caps.
+    expect(page.locator('[name="safety.max_output_tokens"]')).to_have_value("1280")
+    page.get_by_role("button", name="基线测量", exact=False).click()
+    expect(page.locator("#plan-estimate")).to_contain_text("51")
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    expect(page.locator("#detail-status")).to_have_text("运行中")
+    payload = next(c[1] for c in state["calls"] if c[0] == "/api/runs")
+    spec = ExperimentSpec.model_validate(payload)
+    assert spec.load.count == 50 and spec.load.warmup == 1
+    assert spec.safety.max_requests == 51 and spec.safety.max_output_tokens == 51 * 1024
+    assert spec.dataset[0].max_tokens == 1024
+
+
+@pytest.mark.e2e
+def test_simple_editor_dirty_json_blocks_presets_and_import(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    page.locator("#spec-json").fill('{"keep-my-draft":')
+    page.get_by_role("button", name="基线测量", exact=False).click()
+    expect(page.locator("#editor-error")).to_contain_text("先")
+    expect(page.locator("#spec-json")).to_have_value('{"keep-my-draft":')
+    page.locator("#config-file").set_input_files(
+        {"name": "experiment.json", "mimeType": "application/json", "buffer": json.dumps(SPEC).encode()}
+    )
+    expect(page.locator("#spec-json")).to_have_value('{"keep-my-draft":')
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_simple_editor_invalid_collapsed_field_expands_and_focuses(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("local-model")
+    page.locator('[name="load.concurrency"]').evaluate('(node) => { node.value = "0"; }')
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    expect(page.locator('[name="load.concurrency"]')).to_be_visible()
+    expect(page.locator('[name="load.concurrency"]')).to_be_focused()
+    expect(page.locator("#editor-error")).to_be_visible()
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_simple_editor_mobile_layout_and_service_choice(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_role("button", name="vLLM", exact=True).click()
+    expect(page.locator('[name="endpoint.base_url"]')).to_have_value("http://127.0.0.1:8000/v1")
+    page.get_by_role("button", name="Ollama", exact=True).click()
+    expect(page.locator('[name="endpoint.base_url"]')).to_have_value("http://127.0.0.1:11434/v1")
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    expect(page.locator("#advanced-panel")).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_simple_editor_invalid_json_field_is_revealed(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("local-model")
+    page.locator('[name="load.mix"]').evaluate('(node) => { node.value = "{"; }')
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    expect(page.locator('[name="load.mix"]')).to_be_visible()
+    expect(page.locator('[name="load.mix"]')).to_be_focused()
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_simple_editor_invalid_load_clears_valid_budget_preview(browser_page, api_fixture):
+    page = browser_page
+    url, _ = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    page.locator('[name="load.concurrency"]').fill("0")
+    expect(page.locator("#plan-estimate")).to_contain_text("暂无有效预算")
+
+
+@pytest.mark.e2e
+def test_simple_editor_failed_json_apply_is_atomic(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("keep-original-model")
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    bad = copy.deepcopy(SPEC)
+    bad["load"]["scan"] = {"invalid": "array expected"}
+    draft = json.dumps(bad)
+    page.locator("#spec-json").fill(draft)
+    page.get_by_role("button", name="应用 JSON", exact=True).click()
+    expect(page.locator("#editor-error")).to_contain_text("数组")
+    expect(page.locator('[name="endpoint.model"]')).to_have_value("keep-original-model")
+    expect(page.locator("#spec-json")).to_have_value(draft)
+    page.get_by_role("button", name="vLLM", exact=True).click()
+    expect(page.locator('[name="endpoint.base_url"]')).to_have_value("http://127.0.0.1:11434/v1")
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_simple_editor_failed_dataset_import_preserves_previous_data(browser_page, api_fixture):
+    page = browser_page
+    url, _ = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    previous = page.locator("#dataset-jsonl").input_value()
+    previous_json = page.locator("#spec-json").input_value()
+    previous_summary = page.locator("#dataset-summary").inner_text()
+    page.locator('[name="load.mix"]').evaluate('(node) => { node.value = "{"; }')
+    row = {"id": "replacement", "messages": [{"role": "user", "content": "hello"}]}
+    page.locator("#dataset-file").set_input_files(
+        {"name": "replacement.jsonl", "mimeType": "application/jsonl", "buffer": json.dumps(row).encode()}
+    )
+    expect(page.locator("#editor-error")).to_contain_text("JSON")
+    expect(page.locator("#dataset-jsonl")).to_have_value(previous)
+    expect(page.locator("#spec-json")).to_have_value(previous_json)
+    expect(page.locator("#dataset-summary")).to_have_text(previous_summary)
+
+
+@pytest.mark.e2e
+def test_simple_editor_rate_scan_summary_matches_actual_plan(browser_page, api_fixture):
+    page = browser_page
+    url, _ = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    spec = copy.deepcopy(SPEC)
+    spec["load"].update(mode="rate", rate=1, scan=[10, 100])
+    spec["safety"]["max_concurrency"] = 8
+    page.locator("#config-file").set_input_files(
+        {"name": "rate.json", "mimeType": "application/json", "buffer": json.dumps(spec).encode()}
+    )
+    expect(page.locator("#run-settings-summary")).to_contain_text("10 / 100 req/s")
+    expect(page.locator("#run-settings-summary")).to_contain_text("在途上限 8")
 
 
 @pytest.mark.e2e
@@ -538,6 +786,7 @@ def test_real_manager_browser_preflight_run_labels_and_sanitized_download(browse
     address, endpoint, app, observed = real_workbench
     page.goto(address)
     page.get_by_role("button", name="新建实验", exact=True).first.click()
+    expand_editor_options(page)
     page.get_by_role("button", name="载入起始配置", exact=True).click()
     expect(page.get_by_label("实验名称", exact=True)).to_have_value("baseline")
     page.get_by_label("实验名称", exact=True).fill("真实执行链路·协议验证")
@@ -588,6 +837,7 @@ def test_real_manager_browser_cancel_sweep_and_inspect_plan(browser_page, real_w
     address, endpoint, app, observed = real_workbench
     page.goto(address)
     page.get_by_role("button", name="新建实验", exact=True).first.click()
+    expand_editor_options(page)
     page.get_by_role("button", name="载入起始配置", exact=True).click()
     expect(page.get_by_label("实验名称", exact=True)).to_have_value("baseline")
     page.get_by_label("OpenAI 兼容服务地址").fill(endpoint)

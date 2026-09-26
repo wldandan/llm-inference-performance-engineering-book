@@ -33,70 +33,92 @@
     </section>
 
     <section id="view-editor" class="view" hidden aria-labelledby="editor-title">
-      <p class="eyebrow">EXPERIMENT / 新建记录</p><div class="section-heading"><h1 id="editor-title">先定义，再测量。</h1><button type="button" id="load-example">载入起始配置</button></div>
-      <p class="lede">常用参数在表单中填写；完整 JSON 覆盖所有高级选项。起始配置仅供编辑，载入不会发出模型请求。</p>
-      <div id="editor-error" class="error" role="alert" hidden></div><p id="editor-feedback" class="feedback" role="status"></p>
-      <form id="experiment-form">
-        <fieldset><legend><span>01</span> 服务与目标</legend><div class="form-grid">
-          <label>实验名称<input name="name" required maxlength="128" placeholder="例如：长上下文基线"></label>
-          <label>模型名称<input name="endpoint.model" required placeholder="服务中的模型 ID"></label>
-          <label class="wide">OpenAI 兼容服务地址<input name="endpoint.base_url" type="url" required placeholder="http://127.0.0.1:8000/v1"></label>
+      <p class="eyebrow">NEW EXPERIMENT / 从一次小实验开始</p>
+      <div class="section-heading"><h1 id="editor-title">选好模型，就能开始。</h1><label class="config-import">导入实验配置<input id="config-file" type="file" accept=".json,application/json" aria-label="导入实验配置"></label></div>
+      <p class="lede">先用 5 条示例问题跑通流程，也可以换成自己的数据。其他参数已经备好，需要时再调整。</p>
+      <p id="editor-feedback" class="feedback" role="status"></p>
+      <form id="experiment-form" novalidate>
+        <div class="setup-grid">
+        <fieldset class="setup-card"><legend><span>01</span> 连接模型</legend>
+          <div class="service-choices" role="group" aria-label="服务快捷地址"><button type="button" data-service="ollama" aria-pressed="true">Ollama</button><button type="button" data-service="vllm" aria-pressed="false">vLLM</button><button type="button" data-service="custom" aria-pressed="false">自定义</button></div>
+          <div class="form-grid single-column">
+          <label>模型名称<input name="endpoint.model" required maxlength="256" placeholder="例如 qwen3:1.7b" aria-describedby="model-help"></label>
+          <small id="model-help">填写服务中的真实模型 ID；Ollama 可用 ollama list 查看。</small>
+          <label>OpenAI 兼容服务地址<input name="endpoint.base_url" type="url" required value="http://127.0.0.1:11434/v1"></label>
+          </div><small>只设置连接信息，不会自动下载或调用模型。</small>
+        </fieldset>
+        <fieldset class="setup-card"><legend><span>02</span> 选择数据</legend>
+          <div class="dataset-ready"><span class="dataset-icon" aria-hidden="true">≡</span><div><strong id="dataset-summary" role="status">5 条 · 内置示例</strong><p>示例用于验证流程，不代表你的业务负载。</p></div></div>
+          <label class="file-label">导入 JSONL 数据集<input id="dataset-file" type="file" accept=".jsonl,.ndjson,.json,text/plain,application/json"></label>
+          <small>每行一个请求；导入会替换当前数据。完整 smoke.json 请用右上角“导入实验配置”。</small>
+          <details id="dataset-options"><summary>查看 / 编辑样本与数据画像</summary>
+            <label>样本 JSONL<textarea id="dataset-jsonl" rows="6" spellcheck="false"></textarea></label>
+            <label>本地 tokenizer 目录（可空）<input name="tokenizer_path" placeholder="仅使用已安装的本地 tokenizer"><small>留空显示字符数，不将字符数当作 token 数。</small></label>
+            <button type="button" id="profile">生成数据画像</button><pre id="profile-result" class="output" hidden aria-live="polite"></pre>
+          </details>
+        </fieldset>
+        </div>
+        <section class="preset-section" aria-labelledby="preset-heading">
+          <div class="section-heading"><h2 id="preset-heading">怎么测？</h2><span id="preset-status" class="badge" role="status">快速试跑</span></div>
+          <div class="preset-choices"><button type="button" data-preset="quick" aria-pressed="true"><strong>快速试跑</strong><span>5 次请求 · 并发 1</span><small>先确认模型和数据能跑通</small></button><button type="button" data-preset="baseline" aria-pressed="false"><strong>基线测量</strong><span>50 次测量 + 1 次预热 · 并发 1</span><small>记录一组可用于后续对比的结果</small></button></div>
+          <p class="caption">选择预设会设置负载、输出上限和对应安全预算；不会发出请求。样本不足时重复使用，50 次请求不等于 50 条不同样本。</p>
+        </section>
+        <details id="advanced-settings" class="settings-fold"><summary>高级设置 <span>并发、生成参数、质量与资源指标</span></summary>
+        <details class="settings-group" id="connection-options"><summary>实验名称与连接信息</summary><div class="form-grid">
+          <label>实验名称<input name="name" required maxlength="128" value="快速试跑"></label>
           <label>密钥环境变量名<input name="endpoint.api_key_env" placeholder="例如：MODEL_API_KEY" autocomplete="off"><small>只填写变量名，密钥由服务进程读取。</small></label>
           <label>上下文长度（tokens，可空）<input name="endpoint.context_length" type="number" min="1" placeholder="未知"></label>
+          <label class="wide">环境声明（JSON）<textarea name="endpoint.environment" rows="3" spellcheck="false">{}</textarea><small>填写硬件、并行策略、引擎版本等非秘密信息。比较与复测会保留这些差异。</small></label>
+          <label class="wide">实验备注<textarea name="notes" rows="3" maxlength="4096" placeholder="记录本次调整与环境"></textarea></label>
+        </div><div class="inline-actions"><button type="button" id="preflight">服务预检</button><small>独立确认后最多发出 2 次生成请求；不会隐式预检。</small></div><pre id="preflight-result" class="output" hidden aria-live="polite"></pre>
+          <button type="button" id="load-example">载入起始配置</button><small>替换当前表单为通用模板。</small>
+        </details>
+        <details class="settings-group" id="load-options"><summary>流量与生成参数</summary><div class="form-grid">
+            <label>负载模式<select name="load.mode"><option value="concurrency">固定并发</option><option value="rate">目标到达速率</option></select></label>
+            <label>并发数<input name="load.concurrency" type="number" min="1" value="1" required></label>
+            <label>到达速率（req/s）<input name="load.rate" type="number" min="0.001" step="any" value="1" required></label>
+            <label>每点测量请求数<input name="load.count" type="number" min="1" value="5" required></label>
+            <label>每点预热请求数<input name="load.warmup" type="number" min="0" value="0" required></label>
+            <label>重复次数<input name="load.repeats" type="number" min="1" max="20" value="1" required></label>
+            <label>扫描点（逗号分隔）<input name="load.scan" placeholder="例如：1, 2, 4"><small>扫描当前模式的并发或 rate；每点独立记录。</small></label>
+            <label>随机种子<input name="load.seed" type="number" value="42" required></label>
+            <label class="wide">类别混合比例（JSON）<textarea name="load.mix" rows="2" spellcheck="false">{}</textarea></label>
+          <label>每请求最大输出（tokens）<input name="generation.max_tokens" type="number" min="1" value="256" required><small>样本自己的 max_tokens 优先于这里的默认值。</small></label>
+          <label>Temperature<input name="generation.temperature" type="number" min="0" max="2" step="any" value="0" required></label>
+          <label>Top P<input name="generation.top_p" type="number" min="0.001" max="1" step="any" value="1" required></label>
+          <label>缓存条件<select name="cache_condition"><option value="unknown">未知</option><option value="declared_cold">声明为冷缓存</option><option value="declared_warm">声明为热缓存</option></select></label>
+          <label class="check"><input name="generation.stream" type="checkbox" checked>流式响应（SSE）</label>
+        </div></details>
+        <details class="settings-group" id="quality-options"><summary>质量与性能目标</summary><div class="form-grid">
           <label>目标类型<select name="goals.mode"><option value="offline">离线吞吐</option><option value="online">在线响应</option></select></label>
           <label>最低吞吐（req/s，可空）<input name="goals.min_requests_per_s" type="number" min="0.001" step="any" placeholder="未设置"></label>
           <label>端到端 P95 上限（ms）<input name="goals.max_p95_e2e_ms" type="number" min="0.001" step="any" placeholder="未设置"></label>
           <label>TTFT P95 上限（ms）<input name="goals.max_p95_ttft_ms" type="number" min="0.001" step="any" placeholder="未设置"></label>
           <label>TPOT P95 上限（ms/token）<input name="goals.max_p95_tpot_ms" type="number" min="0.001" step="any" placeholder="未设置"></label>
           <label>最大错误率（0—1）<input name="goals.max_error_rate" type="number" min="0" max="1" step="any" value="0"></label>
-          <label class="wide">环境声明（JSON）<textarea name="endpoint.environment" rows="3" spellcheck="false">{}</textarea><small>填写硬件、并行策略、引擎版本等非秘密信息。比较与复测会保留这些差异。</small></label>
-        </div><div class="inline-actions"><button type="button" id="preflight">服务预检</button><small>显式确认后才发送有限生成请求；实验不会隐式预检。</small></div><pre id="preflight-result" class="output" hidden aria-live="polite"></pre></fieldset>
-
-        <fieldset><legend><span>02</span> 数据集与流量</legend>
-          <div class="file-row"><label class="file-label">导入 JSONL 数据集<input id="dataset-file" type="file" accept=".jsonl,.ndjson,.json,text/plain,application/json"></label><small>每行一个 {id, messages, category, max_tokens?}；本地读取，整份请求不超过 2 MiB。</small></div>
-          <label>样本 JSONL<textarea id="dataset-jsonl" rows="6" spellcheck="false" placeholder='{"id":"sample-1","messages":[{"role":"user","content":"你的问题"}],"category":"default"}'></textarea></label>
-          <div class="form-grid"><label class="wide">本地 tokenizer 目录（可空）<input name="tokenizer_path" placeholder="仅使用已安装的本地 tokenizer"><small>留空时 token 长度为未知，字符数不能代替 token 数。</small></label></div>
-          <button type="button" id="profile">生成数据画像</button><pre id="profile-result" class="output" hidden aria-live="polite"></pre>
-          <div class="form-grid spaced">
-            <label>负载模式<select name="load.mode"><option value="concurrency">固定并发</option><option value="rate">目标到达速率</option></select></label>
-            <label>并发数<input name="load.concurrency" type="number" min="1" value="1" required></label>
-            <label>到达速率（req/s）<input name="load.rate" type="number" min="0.001" step="any" value="1" required></label>
-            <label>每点测量请求数<input name="load.count" type="number" min="1" value="10" required></label>
-            <label>每点预热请求数<input name="load.warmup" type="number" min="0" value="0" required></label>
-            <label>重复次数<input name="load.repeats" type="number" min="1" max="20" value="1" required></label>
-            <label>扫描点（逗号分隔）<input name="load.scan" placeholder="例如：1, 2, 4"><small>扫描当前模式的并发或 rate；每点独立记录。</small></label>
-            <label>随机种子<input name="load.seed" type="number" value="42" required></label>
-            <label class="wide">类别混合比例（JSON）<textarea name="load.mix" rows="2" spellcheck="false">{}</textarea></label>
-          </div>
-        </fieldset>
-        <fieldset><legend><span>03</span> 生成与质量</legend><div class="form-grid">
-          <label>每请求最大输出（tokens）<input name="generation.max_tokens" type="number" min="1" value="128" required></label>
-          <label>Temperature<input name="generation.temperature" type="number" min="0" max="2" step="any" value="0" required></label>
-          <label>Top P<input name="generation.top_p" type="number" min="0.001" max="1" step="any" value="1" required></label>
-          <label>缓存条件<select name="cache_condition"><option value="unknown">未知</option><option value="declared_cold">声明为冷缓存</option><option value="declared_warm">声明为热缓存</option></select></label>
-          <label class="check"><input name="generation.stream" type="checkbox" checked>流式响应（SSE）</label>
-          <label class="check"><input name="protocol_fixture" type="checkbox">协议替身实验（不代表模型性能）</label>
-          <label>质量模式<select name="quality.mode"><option value="rules">业务规则</option><option value="manual">人工标签</option><option value="none">不评估（质量未知）</option></select></label>
+          <label>质量模式<select name="quality.mode"><option value="rules">业务规则</option><option value="manual" selected>人工标签</option><option value="none">不评估（质量未知）</option></select></label>
           <label>最低质量通过率（0—1）<input name="goals.min_quality_pass_rate" type="number" min="0" max="1" step="any" value="1" required></label>
           <label>最低响应字符数<input name="quality.min_chars" type="number" min="0" value="1" required></label>
           <label>必需文本（JSON 数组）<textarea name="quality.required_text" rows="2" spellcheck="false">[]</textarea></label>
           <label class="check"><input name="quality.require_json" type="checkbox">要求合法 JSON 输出</label>
           <label class="check"><input name="quality.reject_truncated" type="checkbox" checked>截断响应判为质量不通过</label>
           <label class="wide">必需 JSON 字段（JSON 数组）<textarea name="quality.json_fields" rows="2" spellcheck="false">[]</textarea></label>
-        </div></fieldset>
-        <fieldset><legend><span>04</span> 观测与安全预算</legend><p class="muted">预算覆盖整个计划：扫描点 × 重复 ×（测量 + 预热）。到达事件被客户端拒绝时单独记录，不算模型服务错误。</p><div class="form-grid">
-          <label>总请求上限<input name="safety.max_requests" type="number" min="1" value="1000" required></label>
-          <label>并发上限<input name="safety.max_concurrency" type="number" min="1" value="64" required></label>
-          <label>计划总时限（s）<input name="safety.max_duration_s" type="number" min="0.001" step="any" value="300" required></label>
-          <label>单请求超时（s）<input name="safety.request_timeout_s" type="number" min="0.001" step="any" value="30" required></label>
-          <label>计划输出上限（tokens）<input name="safety.max_output_tokens" type="number" min="1" value="128000" required></label>
+        </div></details>
+        <details class="settings-group" id="safety-options"><summary>安全预算与资源观测</summary><p class="muted">预算覆盖扫描、重复和预热。导入数据或手动改参数不会自动放宽预算。</p><div class="form-grid">
+          <label>总请求上限<input name="safety.max_requests" type="number" min="1" value="5" required></label>
+          <label>并发上限<input name="safety.max_concurrency" type="number" min="1" value="1" required></label>
+          <label>计划总时限（s）<input name="safety.max_duration_s" type="number" min="0.001" step="any" value="900" required></label>
+          <label>单请求超时（s）<input name="safety.request_timeout_s" type="number" min="0.001" step="any" value="180" required></label>
+          <label>计划输出上限（tokens）<input name="safety.max_output_tokens" type="number" min="1" value="1280" required></label>
           <label>单响应上限（bytes）<input name="safety.max_response_bytes" type="number" min="1" value="2097152" required></label>
           <label>观测间隔（s）<input name="telemetry.interval_s" type="number" min="0.1" step="any" value="1" required></label>
           <label class="wide">Prometheus 观测源（JSON 数组）<textarea name="telemetry.sources" rows="5" spellcheck="false">[]</textarea><small>每源填写 name、url、api_key_env 与 mappings；映射保留 key / metric / kind / scale / labels / aggregation。空数组表示未配置观测。</small></label>
-          <label class="wide">实验备注<textarea name="notes" rows="3" maxlength="4096" placeholder="记录本次调整、预期效果与混杂因素"></textarea></label>
-        </div></fieldset>
-        <div class="advanced"><button type="button" id="toggle-json" aria-expanded="false" aria-controls="advanced-panel">展开高级 JSON</button><div id="advanced-panel" hidden><p class="muted">完整 ExperimentSpec；支持 generation.extra、deadline_s、target_requests 等高级项。修改后先应用，再启动。</p><label>完整实验 JSON<textarea id="spec-json" rows="24" spellcheck="false"></textarea></label><button type="button" id="apply-json">应用 JSON</button></div></div>
-        <div class="submit-bar"><div><strong id="plan-estimate">填写配置以确认计划预算</strong><small>启动即授权本次有界实验。服务预检有独立消耗。</small></div><button class="primary" type="submit" id="submit">启动实验计划 <span aria-hidden="true">↗</span></button></div>
+          <label class="check"><input name="protocol_fixture" type="checkbox">协议替身实验（不代表模型性能）</label>
+        </div></details>
+        </details>
+        <div class="advanced json-fold"><button type="button" id="toggle-json" aria-expanded="false" aria-controls="advanced-panel">展开高级 JSON</button><div id="advanced-panel" hidden><p class="muted" id="json-hint">可直接粘贴完整实验配置，修改后点击应用。</p><label>完整实验 JSON<textarea id="spec-json" rows="18" spellcheck="false"></textarea></label><button type="button" id="apply-json">应用 JSON</button></div></div>
+        <div id="editor-error" class="error" role="alert" tabindex="-1" hidden></div>
+        <div class="submit-bar"><div><strong id="plan-estimate">正在准备配置</strong><small id="run-settings-summary"></small><small id="budget-status"></small><small>首次调用可能包含模型加载时间。点击启动才会调用模型。</small></div><button class="primary" type="submit" id="submit">启动实验计划 <span aria-hidden="true">↗</span></button></div>
       </form>
     </section>
 
