@@ -145,6 +145,11 @@
   form.addEventListener("toggle", (event) => {
     if (activeHelp && !event.target.open && event.target.contains(activeHelp.field)) closeParameterHelp();
   }, true);
+  function syncArrivalRateVisibility() {
+    const field = $("#arrival-rate-field");
+    field.hidden = form.elements.namedItem("load.mode").value !== "rate";
+    if (field.hidden && activeHelp && field.contains(activeHelp.field)) closeParameterHelp();
+  }
   function showError(target, error) {
     const node = $(target);
     node.textContent = error ? (error.message || String(error)) : "";
@@ -189,7 +194,10 @@
     showError(errorTarget, null);
     try { await operation(); }
     catch (error) {
-      if (error.field && errorTarget === "#editor-error") revealField(error.field);
+      if (error.field && errorTarget === "#editor-error") {
+        const guidance = revealField(error.field);
+        if (guidance) error.message = guidance;
+      }
       if (errorTarget === "#editor-error") invalidateEstimate(error.message);
       showError(errorTarget, error);
     }
@@ -240,10 +248,13 @@
     if (state.jsonDirty) throw new Error("高级 JSON 尚未应用。请先点击“应用 JSON”，以保留本次编辑。");
   }
   function revealField(input) {
-    for (let parent = input.parentElement; parent; parent = parent.parentElement) {
+    const hiddenRate = input.name === "load.rate" && $("#arrival-rate-field").hidden;
+    const target = hiddenRate ? form.elements.namedItem("load.mode") : input;
+    for (let parent = target.parentElement; parent; parent = parent.parentElement) {
       if (parent.tagName === "DETAILS") parent.open = true;
     }
-    input.focus();
+    target.focus();
+    return hiddenRate ? "到达速率无效，请切换到目标到达速率后修正。" : null;
   }
   function readForm(allowEmpty = false, replacementDataset = null) {
     requireAppliedJSON();
@@ -302,6 +313,7 @@
     $("#dataset-jsonl").value = rows;
     $("#spec-json").value = json;
     $("#json-hint").textContent = "当前 JSON 与表单一致。编辑后先应用，再启动。";
+    syncArrivalRateVisibility();
     updateEstimate(spec);
   }
   function invalidateEstimate(message) {
@@ -337,6 +349,7 @@
     $("#budget-status").textContent = `安全上限：${number(spec.safety.max_requests)} 次 / ${number(spec.safety.max_output_tokens)} 输出 tokens / ${number(spec.safety.max_duration_s)} 秒。${exceeds ? "当前计划超出预算：请显式选择预设，或在高级设置中调整预算。" : ""}`;
   }
   form.addEventListener("input", (event) => {
+    if (event.target.name === "load.mode") syncArrivalRateVisibility();
     if (event.target.id === "spec-json") {
       state.jsonDirty = true;
       invalidateEstimate("JSON 尚未应用；应用后重新显示本次预算。");
@@ -445,8 +458,9 @@
       requireAppliedJSON();
       const invalid = [...form.querySelectorAll("input, select, textarea")].find((input) => !input.validity.valid);
       if (invalid) {
-        revealField(invalid);
-        throw new Error(`请检查 ${invalid.labels?.[0]?.textContent.trim() || invalid.name}：${invalid.validationMessage}`);
+        const error = new Error(`请检查 ${invalid.labels?.[0]?.textContent.trim() || invalid.name}：${invalid.validationMessage}`);
+        error.field = invalid;
+        throw error;
       }
       const spec = readForm();
       const plan = await api("/api/runs", spec);

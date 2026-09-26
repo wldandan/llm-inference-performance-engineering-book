@@ -510,12 +510,104 @@ def test_simple_editor_rate_scan_summary_matches_actual_plan(browser_page, api_f
 
 
 @pytest.mark.e2e
+def test_arrival_rate_follows_mode_and_keeps_value(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    mode = page.get_by_label("负载模式", exact=True)
+    rate = page.get_by_label("到达速率（req/s）", exact=True)
+    help_button = page.get_by_role("button", name="到达速率（req/s）说明", exact=True)
+    expect(rate).not_to_be_visible()
+    expect(help_button).not_to_be_visible()
+    mode.select_option("rate")
+    expect(rate).to_be_visible()
+    rate.fill("2.5")
+    help_button.click()
+    expect(page.get_by_role("tooltip")).to_be_visible()
+    # A mode change must dismiss the tip even without pointer or blur events.
+    mode.evaluate('el => { el.value = "concurrency"; el.dispatchEvent(new Event("input", {bubbles:true})); }')
+    expect(rate).not_to_be_visible()
+    expect(help_button).not_to_be_visible()
+    expect(page.locator("#help-load-rate")).to_be_hidden()
+    expect(rate).to_have_value("2.5")
+    mode.select_option("rate")
+    expect(rate).to_be_visible()
+    expect(rate).to_have_value("2.5")
+    page.locator('[data-preset="quick"]').click()
+    expect(mode).to_have_value("concurrency")
+    expect(rate).not_to_be_visible()
+    assert json.loads(page.locator("#spec-json").input_value())["load"]["rate"] == 2.5
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("source", ["json", "file"])
+def test_arrival_rate_follows_imported_mode(browser_page, api_fixture, source):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    rate = page.get_by_label("到达速率（req/s）", exact=True)
+    spec = copy.deepcopy(SPEC)
+    spec["load"]["rate"] = 3.5
+    if source == "json":
+        page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    for mode in ["rate", "concurrency", "rate"]:
+        spec["load"]["mode"] = mode
+        if source == "json":
+            page.locator("#spec-json").fill(json.dumps(spec))
+            page.get_by_role("button", name="应用 JSON", exact=True).click()
+        else:
+            page.locator("#config-file").set_input_files(
+                {"name": "rate.json", "mimeType": "application/json", "buffer": json.dumps(spec).encode()}
+            )
+            expect(page.locator("#editor-feedback")).to_contain_text("配置已导入")
+        expect(page.get_by_label("负载模式", exact=True)).to_have_value(mode)
+        expect(rate).to_have_value("3.5")
+        if mode == "rate":
+            expect(rate).to_be_visible()
+        else:
+            expect(rate).not_to_be_visible()
+        assert json.loads(page.locator("#spec-json").input_value()) == spec
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("invalid_rate", ["", "0"])
+def test_arrival_rate_invalid_hidden_value_has_visible_correction_path(
+    browser_page, api_fixture, invalid_rate
+):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    page.get_by_label("模型名称", exact=True).fill("fixture")
+    mode = page.get_by_label("负载模式", exact=True)
+    rate = page.get_by_label("到达速率（req/s）", exact=True)
+    mode.select_option("rate")
+    rate.fill(invalid_rate)
+    mode.select_option("concurrency")
+    page.get_by_role("button", name="启动实验计划", exact=True).click()
+    expect(page.locator("#editor-error")).to_contain_text("请切换到目标到达速率后修正")
+    expect(mode).to_be_focused()
+    expect(mode).to_have_value("concurrency")
+    expect(rate).not_to_be_visible()
+    expect(rate).to_have_value(invalid_rate)
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
 def test_parameter_tips_cover_load_fields_with_examples_and_preserve_values(browser_page, api_fixture):
     page = browser_page
     url, state = api_fixture
     page.goto(url)
     page.locator('nav [data-view="editor"]').click()
     expand_editor_options(page)
+    page.get_by_label("负载模式", exact=True).select_option("rate")
     before = page.locator("#spec-json").input_value()
     explanations = {
         "负载模式": "固定并发",

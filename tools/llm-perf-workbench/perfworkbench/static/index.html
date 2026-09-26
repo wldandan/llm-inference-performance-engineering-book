@@ -76,7 +76,7 @@
         <details class="settings-group" id="load-options"><summary>流量与生成参数</summary><div class="form-grid">
             <label>负载模式<select name="load.mode"><option value="concurrency">固定并发</option><option value="rate">目标到达速率</option></select></label>
             <label>并发数<input name="load.concurrency" type="number" min="1" value="1" required></label>
-            <label>到达速率（req/s）<input name="load.rate" type="number" min="0.001" step="any" value="1" required></label>
+            <div id="arrival-rate-field" hidden><label>到达速率（req/s）<input name="load.rate" type="number" min="0.001" step="any" value="1" required></label></div>
             <label>每点测量请求数<input name="load.count" type="number" min="1" value="5" required></label>
             <label>每点预热请求数<input name="load.warmup" type="number" min="0" value="0" required></label>
             <label>重复次数<input name="load.repeats" type="number" min="1" max="20" value="1" required></label>
