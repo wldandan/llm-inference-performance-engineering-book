@@ -510,6 +510,102 @@ def test_simple_editor_rate_scan_summary_matches_actual_plan(browser_page, api_f
 
 
 @pytest.mark.e2e
+def test_connection_help_explains_fields_and_preserves_form(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    before = page.locator("#spec-json").input_value()
+    explanations = {
+        "实验名称": ["识别", "baseline", "不会"],
+        "密钥环境变量名": ["MODEL_API_KEY", "不要填写密钥", "工作台进程", "留空"],
+        "上下文长度（tokens，可空）": ["输入 + 输出", "32768", "tokenizer", "不会修改", "留空"],
+        "环境声明（JSON）": ['"engine": "ollama"', "不会修改", "单层", "{}"],
+        "实验备注": ["不会作为", "并发", "留空"],
+    }
+    expect(page.locator("#connection-options .help-trigger")).to_have_count(5)
+    for title, phrases in explanations.items():
+        button = page.get_by_role("button", name=f"{title}说明", exact=True)
+        expect(button).to_have_attribute("type", "button")
+        assert not button.locator("xpath=ancestor::label").count()
+        button.click()
+        tip = page.get_by_role("tooltip")
+        expect(tip).to_have_count(1)
+        for phrase in phrases:
+            expect(tip).to_contain_text(phrase)
+        control = page.get_by_label(title, exact=True)
+        expect(control).to_have_count(1)
+        assert tip.get_attribute("id") in control.get_attribute("aria-describedby").split()
+        if title in {"环境声明（JSON）", "实验备注"}:
+            assert control.evaluate('el => el.closest(".help-field").classList.contains("wide")')
+        page.keyboard.press("Escape")
+        expect(button).to_be_focused()
+    expect(page.locator("#spec-json")).to_have_value(before)
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("width", [1440, 390])
+def test_connection_help_uses_compact_icons_with_large_click_targets(browser_page, api_fixture, width):
+    page = browser_page
+    url, state = api_fixture
+    page.set_viewport_size({"width": width, "height": 844})
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    page.get_by_label("负载模式", exact=True).select_option("rate")
+    # Old and new groups share the same compact icon and accessible hit area.
+    button = page.get_by_role("button", name="负载模式说明", exact=True)
+    expect(button.locator(".help-icon")).to_have_count(1)
+    expect(page.locator(".help-trigger")).to_have_count(14)
+    sizes = page.locator(".help-trigger").evaluate_all(
+        """buttons => buttons.map(button => {
+            const icon = button.querySelector('.help-icon');
+            return {target: [button.offsetWidth, button.offsetHeight],
+                icon: [icon.offsetWidth, icon.offsetHeight],
+                font: parseFloat(getComputedStyle(icon).fontSize),
+                decorative: icon.getAttribute('aria-hidden')};
+        })"""
+    )
+    assert all(s["target"] == [24, 24] and s["icon"] == [16, 16] for s in sizes)
+    assert all(s["font"] == 11 and s["decorative"] == "true" for s in sizes)
+    # The invisible margin remains clickable; it is not part of the tiny circle.
+    button.click(position={"x": 1, "y": 1})
+    expect(page.get_by_role("tooltip")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(button).to_be_focused()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_connection_help_touch_open_close(browser_page, api_fixture):
+    url, state = api_fixture
+    context = browser_page.context.browser.new_context(
+        viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True
+    )
+    try:
+        page = context.new_page()
+        page.set_default_timeout(4000)
+        page.goto(url)
+        page.locator('nav [data-view="editor"]').tap()
+        page.locator("#advanced-settings > summary").tap()
+        page.locator("#connection-options > summary").tap()
+        button = page.get_by_role("button", name="上下文长度（tokens，可空）说明", exact=True)
+        button.tap()
+        tip = page.get_by_role("tooltip")
+        expect(tip).to_contain_text("输入 + 输出")
+        box = tip.bounding_box()
+        assert 0 <= box["x"] and box["x"] + box["width"] <= 390
+        button.tap()
+        expect(page.get_by_role("tooltip")).to_have_count(0)
+        assert state["calls"] == []
+    finally:
+        context.close()
+
+
+@pytest.mark.e2e
 def test_arrival_rate_follows_mode_and_keeps_value(browser_page, api_fixture):
     page = browser_page
     url, state = api_fixture

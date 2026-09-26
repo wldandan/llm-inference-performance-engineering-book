@@ -49,9 +49,12 @@ button[aria-pressed=true]{border-color:var(--teal);background:var(--teal-light);
 .settings-group[open]{padding-bottom:20px}
 .settings-group .form-grid{margin-top:10px}
 .help-field{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:12px}
-.help-label-row{position:relative;display:flex;align-items:center;gap:6px;min-height:28px}
+.help-label-row{position:relative;display:flex;align-items:center;gap:2px;min-height:24px}
 .help-label-row label{display:block}
-.help-trigger{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;height:28px;min-height:28px;padding:0;border-radius:50%;border-color:#9baa9d;background:transparent;color:var(--teal);font:600 13px Notebook,NotebookCN,sans-serif}
+.help-trigger{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:24px;min-height:24px;padding:0;border:0;border-radius:0;background:transparent;color:var(--muted)}
+.help-trigger:hover{background:transparent}
+.help-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid #9baa9d;border-radius:50%;font:600 11px/1 Notebook,NotebookCN,sans-serif;pointer-events:none}
+.help-trigger:hover .help-icon{background:var(--teal-light);border-color:var(--teal);color:var(--teal)}
 .parameter-tip{position:absolute;z-index:20;top:100%;left:0;width:min(380px,100%);padding:15px 17px;background:var(--surface);border:1px solid #a6b7a9;border-top:3px solid var(--teal);border-radius:var(--radius);box-shadow:0 8px 24px #183a3626;color:var(--ink);font-size:12px;line-height:1.85;overflow-wrap:anywhere}
 .parameter-tip strong{display:block;font-size:13px}
 .parameter-tip p{margin:9px 0 0}

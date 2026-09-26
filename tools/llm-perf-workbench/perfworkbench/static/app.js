@@ -37,6 +37,28 @@
     return node;
   };
   const parameterHelp = {
+    "name": [
+      "给本次实验起一个方便识别、查找和对比的名字。名称必填，最多 128 个字符，不会改变模型或运行参数。",
+      "例如：baseline、qwen3-1.7b-并发1。叫 baseline 只是命名，不会自动把该实验设为对比基线。",
+    ],
+    "endpoint.api_key_env": [
+      "访问需要鉴权的模型服务时，在这里填写保存密钥的环境变量名，例如 MODEL_API_KEY。不要填写密钥本身。工作台进程从自己的环境中读取对应值，用于请求模型服务。",
+      "请在启动工作台前配置该变量；只填写变量名不会创建变量，变量不存在或值为空会报错。不需要鉴权的本地服务可以留空。",
+    ],
+    "endpoint.context_length": [
+      "声明当前推理服务允许单次请求使用的上下文总长度，即输入 + 输出的 token 上限，不是文字字数，也不是每次必须用满的长度。",
+      "例如：服务当前配置的上限是 32768 tokens，就填 32768。不确定可以留空，按未知处理；这里不会修改 Ollama 或 vLLM 的服务配置。",
+      "已配置可用的本地 tokenizer 时，工作台会用最大输入 token 数加最大输出预留做保守检查；未配置时无法完成这项 token 级长度检查。",
+    ],
+    "endpoint.environment": [
+      "记录本次实验实际使用的硬件、推理引擎、版本和并行策略，方便理解两次实验的性能差异。这里不是设置环境变量，不会修改模型服务配置。",
+      '例如：{"engine": "ollama", "device": "Apple Silicon"}。请按实际环境填写；暂不记录时保留 {}，不要把文本框清空。',
+      "使用单层 JSON 对象，值可以是字符串、数字或 null。不要写密钥、密码或其他敏感信息。",
+    ],
+    "notes": [
+      "补充本次实验的目的、调整和观察点，方便以后回看；可以留空。备注不会作为提示词发给模型，也不会修改实验配置。",
+      "例如：只把并发从 1 改为 2，其他条件不变，观察吞吐量和错误率。请勿记录密钥或敏感数据。",
+    ],
     "load.mode": [
       "选择请求如何发给模型服务。固定并发：同时保持指定数量的请求在途，一个结束后再补一个，直到完成本轮请求。目标到达速率：按设定的平均速度发起新请求，不等待上一条完成。",
       "例如：并发 4 表示最多同时等待 4 个响应；到达速率 2 req/s 表示平均每秒发起 2 个新请求，不代表每秒能完成 2 个。",
@@ -103,7 +125,10 @@
       const children = [...label.children];
       const field = element("div", null, `${label.className} help-field`.trim());
       const row = element("div", null, "help-label-row");
-      const button = element("button", "?", "help-trigger");
+      const button = element("button", null, "help-trigger");
+      const icon = element("span", "?", "help-icon");
+      icon.setAttribute("aria-hidden", "true");
+      button.append(icon);
       const tip = element("div", null, "parameter-tip");
       const idBase = name.replaceAll(".", "-");
       if (!control.id) control.id = uniqueId(`field-${idBase}`);
