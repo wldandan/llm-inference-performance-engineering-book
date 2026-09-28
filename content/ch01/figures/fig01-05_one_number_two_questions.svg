@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="fig-title fig-desc" data-figure-system="chapter01-v2" fill="#0F172A">
+  <title id="fig-title">图 1-5 一个总时长，两个独立的问题</title><desc id="fig-desc">左侧同步记录只剩一个总时长，右侧流式记录给出开口、节奏与答完三个数字，并引出多久开口与出得稳不稳两个问题。</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker><style>
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    .k{font-size:14px;font-weight:700;letter-spacing:2px;fill:#64748B}
+    .t{font-size:32px;font-weight:750}
+    .sub{font-size:16px;fill:#64748B}
+    .card{fill:#FFFFFF;stroke:#CBD5E1;stroke-width:1.8}
+    .soft{fill:#F1F5F9;stroke:#CBD5E1;stroke-width:1.3}
+    .dark{fill:#0F172A}
+    .h{font-size:20px;font-weight:750}
+    .hw{font-size:20px;font-weight:750;fill:#FFFFFF}
+    .s{font-size:15px;fill:#64748B}
+    .sw{font-size:15px;fill:#CBD5E1}
+    .b{font-size:17px;font-weight:700}
+    .m{font-size:15px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .flow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#arrow)}
+    .bracket{fill:none;stroke:#64748B;stroke-width:2}
+    .divider{stroke:#E2E8F0;stroke-width:1.5}
+    .take{fill:#0F172A}
+    .tl{font-size:14px;font-weight:700;letter-spacing:1px;fill:#CBD5E1}
+    .tv{font-size:19px;font-weight:650;fill:#FFFFFF}
+</style></defs>
+  <rect width="1280" height="720" fill="#F8FAFC"/>
+  <text class="k" x="56" y="46">ONE NUMBER, TWO QUESTIONS · 05</text><text class="t" x="56" y="84">一个总时长，两个独立的问题</text><text class="sub" x="56" y="114">交付方式一变，“快”的含义也跟着变：用户在第一个字出现时就开始读了</text>
+  <g transform="translate(72 162)"><rect class="card" width="420" height="188" rx="20"/><text class="h" x="32" y="50">同步 stream=false</text><text class="b" x="32" y="96">只有一个数字：time_total</text><text class="s" x="32" y="130">答案要么没出来，要么全出来了</text><text class="s" x="32" y="158">中间没有可记录的事件</text></g>
+  <path class="flow" d="M492 256H600"/>
+  <text class="s" x="546" y="236" text-anchor="middle" fill="#0F172A">换成流式</text>
+  <g transform="translate(604 162)"><rect class="card" width="604" height="188" rx="20"/><text class="h" x="32" y="50">流式 stream=true</text><text class="b" x="32" y="92">开口：首个内容分片 29.64 ms</text><text class="b" x="32" y="126">之后：254 个分片，平均间隔 9.15 ms</text><text class="b" x="32" y="160">答完：整次调用 2345.26 ms</text></g>
+  <path class="flow" d="M282 350V424"/>
+  <g transform="translate(72 428)"><rect class="soft" width="420" height="96" rx="18"/><text class="b" x="32" y="42">只能问“多久答完”</text><text class="s" x="32" y="72">用户感受被压进一个总时长里</text></g>
+  <path class="flow" d="M744 350V424"/>
+  <path class="flow" d="M1060 350V424"/>
+  <g transform="translate(604 428)"><rect class="dark" width="280" height="96" rx="18"/><text class="hw" x="140" y="44" text-anchor="middle">多久开口</text><text class="sw" x="140" y="74" text-anchor="middle">对着空白等多久</text></g>
+  <g transform="translate(920 428)"><rect class="dark" width="288" height="96" rx="18"/><text class="hw" x="144" y="44" text-anchor="middle">后面出得稳不稳</text><text class="sw" x="144" y="74" text-anchor="middle">读起来顺不顺</text></g>
+  <path class="flow" d="M744 524V566"/>
+  <path class="flow" d="M1064 524V566"/>
+  <text class="b" x="744" y="592" text-anchor="middle">第 5 章 TTFT</text>
+  <text class="b" x="1064" y="592" text-anchor="middle">第 5 章 ITL</text>
+  <text class="s" x="72" y="592">两个量互相独立：开口快也可能输出结巴</text>
+  <text class="s" x="72" y="618">右侧三个数字来自 GX10 一次真实调用的客户端观测，不是性能结论</text>
+  <rect class="take" x="56" y="642" width="1168" height="54" rx="14"/><text class="tl" x="80" y="675">关键结论</text><text class="tv" x="184" y="676">流式让客户端第一次测得到这两个量，它们的正式名字在第 5 章。</text>
+</svg>

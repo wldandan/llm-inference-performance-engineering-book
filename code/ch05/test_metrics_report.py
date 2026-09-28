@@ -136,33 +136,91 @@ class MetricsReportTests(unittest.TestCase):
                 record("bad", 0, [100], 120, quality_pass=True, quality_score=0.1)
             )
 
-    def test_latency_budget_splits_ttft_and_post_first_token_time(self):
-        budget = self.metrics.build_latency_budget(
+    def _default_budget(self, **overrides):
+        kwargs = dict(
             ttft_slo_ms=250,
             e2e_slo_ms=800,
-            client_gateway_ms=40,
+            client_to_gateway_ms=20,
+            admission_ms=20,
             queue_ms=60,
             scheduled_to_first_token_ms=130,
             decode_streaming_ms=500,
             response_tail_ms=40,
         )
+        kwargs.update(overrides)
+        return self.metrics.build_latency_budget(**kwargs)
+
+    def test_latency_budget_splits_ttft_and_post_first_token_time(self):
+        budget = self._default_budget()
 
         self.assertEqual(budget["ttft_allocated_ms"], 230)
-        self.assertEqual(budget["ttft_unallocated_ms"], 20)
         self.assertEqual(budget["e2e_allocated_ms"], 770)
-        self.assertEqual(budget["e2e_unallocated_ms"], 30)
+        self.assertEqual(budget["unallocated_total_ms"], 30)
+        self.assertEqual(budget["unallocated_before_first_token_ms"], 20)
+        self.assertEqual(budget["unallocated_after_first_token_ms"], 10)
+
+    def test_allocated_stages_plus_total_slack_equal_the_e2e_slo(self):
+        budget = self._default_budget()
+
+        self.assertEqual(
+            sum(budget["components_ms"].values()) + budget["unallocated_total_ms"],
+            budget["e2e_slo_ms"],
+        )
+
+    def test_the_two_slack_numbers_are_not_additive(self):
+        budget = self._default_budget()
+        rows_a_reader_might_add = (
+            sum(budget["components_ms"].values())
+            + budget["unallocated_before_first_token_ms"]
+            + budget["unallocated_after_first_token_ms"]
+        )
+
+        self.assertEqual(rows_a_reader_might_add, budget["e2e_slo_ms"])
+        self.assertEqual(
+            budget["unallocated_before_first_token_ms"]
+            + budget["unallocated_after_first_token_ms"],
+            budget["unallocated_total_ms"],
+        )
+        self.assertNotIn("ttft_unallocated_ms", budget)
+        self.assertNotIn("e2e_unallocated_ms", budget)
+
+    def test_budget_names_the_segment_no_metric_covers(self):
+        budget = self._default_budget()
+        segments = budget["unmeasured_segments"]
+
+        self.assertEqual(len(segments), 1)
+        self.assertEqual(segments[0]["segment"], "first_token -> first_chunk_received")
+        self.assertEqual(segments[0]["belongs_to"], "ttft")
 
     def test_latency_budget_rejects_over_allocation(self):
         with self.assertRaisesRegex(ValueError, "TTFT budget"):
-            self.metrics.build_latency_budget(
+            self._default_budget(
                 ttft_slo_ms=100,
                 e2e_slo_ms=200,
-                client_gateway_ms=40,
+                client_to_gateway_ms=20,
+                admission_ms=20,
                 queue_ms=40,
                 scheduled_to_first_token_ms=40,
                 decode_streaming_ms=50,
                 response_tail_ms=10,
             )
+
+    def test_latency_budget_rejects_ttft_slack_larger_than_total_slack(self):
+        with self.assertRaisesRegex(ValueError, "TTFT slack"):
+            self._default_budget(
+                ttft_slo_ms=250,
+                e2e_slo_ms=790,
+                decode_streaming_ms=520,
+            )
+
+    def test_good_request_cost_is_higher_than_successful_request_cost(self):
+        records = self.metrics.load_jsonl(MODULE_PATH.with_name("sample.jsonl"))
+        report = self.metrics.build_report(records, ttft_slo_ms=250, e2e_slo_ms=800)
+        cost = report["cost"]
+
+        self.assertAlmostEqual(cost["usd_per_successful_request"], 0.0035 / 3)
+        self.assertAlmostEqual(cost["usd_per_good_request"], 0.0035 / 2)
+        self.assertGreater(cost["usd_per_good_request"], cost["usd_per_successful_request"])
 
     def test_nearest_rank_percentile_is_explicit_and_deterministic(self):
         values = list(range(1, 101))
