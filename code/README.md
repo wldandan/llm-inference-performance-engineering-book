@@ -1,6 +1,6 @@
 # 课程 Demo 代码
 
-所有章节 Demo 统一放在 Git 仓库根目录的本目录中，并使用两位章节编号命名。当前代码按 V0.2 主线迁移，权威映射见 [`../strategy/course-design/30章-Demo映射-v0.2.md`](../strategy/course-design/30章-Demo映射-v0.2.md)：
+所有章节 Demo 统一放在本目录中，并使用两位章节编号命名。课程侧的 Demo 映射与实验编排在 [Course 仓库](https://github.com/wldandan/llm-inference-performance-engineering-course) 中维护：
 
 ```text
 code/

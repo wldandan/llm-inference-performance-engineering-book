@@ -3,9 +3,6 @@ AGENTS.md
 skills/
 .learnings/
 
-# Imported source-local permissions are preserved locally, not shared or activated here
-materials/infra/.claude/
-
 # Local OS/editor/cache files
 .DS_Store
 **/.DS_Store

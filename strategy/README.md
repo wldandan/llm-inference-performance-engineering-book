@@ -1,6 +1,6 @@
 # 策略目录：面向我们自己的文档
 
-这里保存**写书的人**需要的文档：课程怎么设计、章节怎么写、实验怎么做、每章审到什么程度。
+这里保存**写书的人**需要的文档：章节怎么写、每章审到什么程度，以及书稿如何形成稳定版本。
 读者手里的正文只在 `../content/`，两边不再混在同一层。
 
 判断标准：一份文档如果只在我们决定"下一步写什么、按什么标准验收"时才需要打开，它就属于这里。
@@ -9,16 +9,14 @@
 
 | 路径 | 内容 |
 |---|---|
-| [`course-design/`](course-design/) | 课程设计理念、权威大纲、章节模板、正文迁移计划、Demo 映射与 Part 1 交付/审阅报告 |
 | [`editorial/`](editorial/) | 图书主编蓝图、写作样板、书稿—代码—Workshop 映射、缺口清单，入口见 [`editorial/README.md`](editorial/README.md) |
-| [`architecture/`](architecture/) | 技术主线与实验架构、实验规范与指标体系、第一批 Spike 计划、experiment manifest 样例 |
 | [`reviews/`](reviews/) | 逐章 `storyboard.md` / `review.md` / `integration-report.md`，按 `chNN/` 组织 |
 
 ## 权威基线
 
-- 章号与标题：[`course-design/02_Course_Outline_v0.2.md`](course-design/02_Course_Outline_v0.2.md)
-- 章节写作合同：[`course-design/03_Course_Template.md`](course-design/03_Course_Template.md)
-- 实验与指标口径：[`architecture/实验规范与指标体系-v1.0.md`](architecture/实验规范与指标体系-v1.0.md)
+- 图书结构与编辑规则：[`editorial/book-editorial-blueprint-v1.0.md`](editorial/book-editorial-blueprint-v1.0.md)
+- 章节写作规则：[`editorial/writing-rules.md`](editorial/writing-rules.md)
+- 书稿缺口：[`editorial/gap-register.md`](editorial/gap-register.md)
 
 ## 与 content/ 的分工
 

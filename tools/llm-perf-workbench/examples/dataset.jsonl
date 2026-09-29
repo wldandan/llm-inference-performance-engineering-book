@@ -1,2 +1,0 @@
-{"id":"classify-001","category":"classification","messages":[{"role":"user","content":"将以下主题归类：LLM 推理优化；数据库性能。"}],"max_tokens":128}
-{"id":"summarize-001","category":"summary","messages":[{"role":"user","content":"用中文解释 Prefill 和 Decode 的主要区别。"}],"max_tokens":256}

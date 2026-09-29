@@ -1,56 +1,17 @@
-# LLM 推理系统与性能工程实战
+# LLM 推理性能工程
 
-**完整 Course 结业输出：**[可测量、可诊断、可优化、可治理的推理服务及工程证据](COURSE-OUTPUT.md)。
+> 从一次请求出发，建立可测量、可诊断、可验证的推理性能工程方法。
 
-> 搭建模型服务 → 理解系统机制 → 测量诊断 → 优化验证 → 生产交付
+本仓库只维护 **Book**：30章正文、配套章节代码、插图和编辑审阅记录。教学编排、专项实验、课程材料与性能工作台在独立的 [Course 仓库](https://github.com/wldandan/llm-inference-performance-engineering-course) 中维护。
 
-本仓库是生产级 Agent 工程体系中独立维护的 Manage 课程。原 AI Infra 系统材料已归入 `materials/infra/`，与30章教材、代码、实验和参考资料统一建设。
-
-## 从这里开始
-
-性能专项实验见 [`workshops/`](workshops/README.md)，覆盖模型内部机制、全局性能模型、批处理、KV Cache、Prefix Cache、CUDA Graph、推测解码与 Chunked Prefill。三天集中实训由[课程体系仓](https://github.com/wldandan/production-agent-engineering-curriculum)维护。
-
-| 你要做什么 | 入口 |
+| 内容 | 入口 |
 |---|---|
-| 查看课程12模块与现有材料归属 | [统一材料索引](materials/README.md) |
-| 阅读正在写的30章教材 | [第一篇导读](content/part01.md) |
-| 使用已有章节代码 | [代码状态与逐章入口](code/README.md) |
-| 查找原系统课件、Notebook和历史设计 | [Infra补充材料](materials/infra/README.md) |
-| 深入训练系统 | [独立训练选修](materials/training-elective.md) |
-| 运行性能专项实验 | [Workshop 实验](workshops/README.md) |
-| 继续编写教材和实验 | [写作与工程策略](strategy/README.md) |
+| 阅读全书 | [第一篇导读](content/part01.md) |
+| 查看章节代码 | [代码索引](code/README.md) |
+| 了解写作与审阅规则 | [编辑策略](strategy/README.md) |
+| 参加课程和运行实验 | [Course 仓库](https://github.com/wldandan/llm-inference-performance-engineering-course) |
 
-当前主课为12个教学模块，教材仍按七篇30章组织。两者不是一一对应；材料索引标明如何复用原稿、补充系统机制，以及哪些内容只有占位规划、尚未预跑。
-
-## 学完交付什么
-
-完整实践交付一套可复现的模型服务，包含架构与资源选择、部署配置、运行手册、可信基线、瓶颈证据、优化对照、质量与成本检查和回归标准。已有服务的学员可从测量与诊断切入，系统知识按需补齐。
-
-**完整训练不是必修前置。** 复杂多机、MoE、P/D分离和Kernel优化按需进阶。仅有API权限时可完成客户端与应用层测量，但不能据此宣称完成模型部署、故障恢复、服务端或GPU诊断；完整系统实践仍需可访问的后端环境。
-
-应用方向可从 Agent 与 AI 软件工程衔接，也可直接进入本课程。三天集中实训选择单机服务、资源估算、可信测量、诊断与回归的核心路线，不替代30章教材和本仓性能专项实验的全部深度；模拟耗时不能作为真实服务性能基线。
-
-[课程体系](https://github.com/wldandan/production-agent-engineering-curriculum) · [Agent 课程](https://github.com/wldandan/ai-agent-engineering-course) · [AI 原生软件工程课程](https://github.com/wldandan/ai-native-software-engineering-course)
-
-## 统一建设目录
-
-```text
-content/                       30章教材、插图与附录，原位继续写作
-code/                          现有章节代码，原位维护
-ref/                           参考书与资料
-strategy/                      原有写作、设计与审阅记录
-workshops/                     可复现的推理性能专项实验
-materials/
-├── README.md                  12模块材料映射与缺口
-├── training-elective.md       训练独立选修入口
-└── infra/                     原02材料，历史树完整保留
-```
-
-三天集中教学包由课程体系仓独立维护，本仓聚焦完整课程、教材、工具和性能专项实验。旧材料含历史版本、模拟结果和待核验数字，使用前须复核；实验是否就绪以代码与运行证据分别判断。
-
-## 教材主干：LLM 推理性能工程
-
-以下保留现有教材介绍和进度口径；章节正文、代码、图件和已有写作改动未因目录合并而重写。
+Book 与 Course 共享知识体系，但发布节奏独立。Course 可以引用确定版本的章节，不在课程仓复制书稿。
 
 你把一个 LLM 服务跑起来了，用户说它慢。你打开监控，看到 P99 确实在涨。然后呢？
 
