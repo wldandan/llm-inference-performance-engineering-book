@@ -13,7 +13,7 @@ from streaming_client import (
 )
 
 
-class Chapter02StreamingClientTest(unittest.TestCase):
+class Chapter01StreamingClientTest(unittest.TestCase):
     def test_default_model_supports_chat_requests(self):
         self.assertEqual(DEFAULT_MODEL, "Qwen/Qwen2.5-0.5B-Instruct")
 

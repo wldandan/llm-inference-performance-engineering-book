@@ -94,3 +94,25 @@ python3 -m unittest discover -s code/ch04 -p 'test_*.py'
 - 逻辑组件不等于独立进程；多个角色可以部署在同一个单元中。
 - Demo 不连接真实服务，也不采集 TTFT、吞吐或 GPU 指标。
 - 多副本在后续章节展开；多 GPU 和 PD Disaggregation 放在 Advanced。
+
+## 7. 参考文档
+
+4.6 节那段分层对照的出处，按层级排列：
+
+服务平台层（发布、扩缩容、多模型治理）
+
+- [Ray Serve Architecture](https://docs.ray.io/en/latest/serve/architecture.html)
+- [KServe Concepts and Architecture](https://kserve.github.io/website/docs/concepts)
+
+推理服务器层（协议入口、模型实例管理）
+
+- [Triton Inference Server Architecture](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/architecture.html)
+- [NVIDIA Dynamo Architecture](https://docs.nvidia.com/dynamo/dev/knowledge-base/concepts/architecture)
+
+LLM 引擎层（KV Cache 调度、模型执行）
+
+- [vLLM Architecture Overview](https://docs.vllm.ai/en/stable/design/arch_overview/)
+- [TensorRT-LLM Executor API](https://nvidia.github.io/TensorRT-LLM/advanced/executor.html)
+- [llama.cpp README](https://github.com/ggml-org/llama.cpp/blob/master/README.md)
+
+引这些文档是为了确认各系统覆盖哪些层级，不是做功能或性能对比。文档会随版本变化，比较之前先确认版本。

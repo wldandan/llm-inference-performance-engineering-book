@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="fig-title fig-desc" data-figure-system="chapter01-v2" fill="#0F172A">
+  <title id="fig-title">图 1-4 流式调用里客户端能记下的四个时刻</title><desc id="fig-desc">上方是 SSE 流的五类行，下方把请求发出、首个内容分片、后续分片与流结束落在同一条客户端时间线上，并闭合两段区间。</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker><style>
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    .k{font-size:14px;font-weight:700;letter-spacing:2px;fill:#64748B}
+    .t{font-size:32px;font-weight:750}
+    .sub{font-size:16px;fill:#64748B}
+    .card{fill:#FFFFFF;stroke:#CBD5E1;stroke-width:1.8}
+    .soft{fill:#F1F5F9;stroke:#CBD5E1;stroke-width:1.3}
+    .dark{fill:#0F172A}
+    .h{font-size:20px;font-weight:750}
+    .hw{font-size:20px;font-weight:750;fill:#FFFFFF}
+    .s{font-size:15px;fill:#64748B}
+    .sw{font-size:15px;fill:#CBD5E1}
+    .b{font-size:17px;font-weight:700}
+    .m{font-size:15px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .flow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#arrow)}
+    .bracket{fill:none;stroke:#64748B;stroke-width:2}
+    .divider{stroke:#E2E8F0;stroke-width:1.5}
+    .take{fill:#0F172A}
+    .tl{font-size:14px;font-weight:700;letter-spacing:1px;fill:#CBD5E1}
+    .tv{font-size:19px;font-weight:650;fill:#FFFFFF}
+</style></defs>
+  <rect width="1280" height="720" fill="#F8FAFC"/>
+  <text class="k" x="56" y="46">CLIENT EVENTS · 04</text><text class="t" x="56" y="84">流式调用里客户端能记下的四个时刻</text><text class="sub" x="56" y="114">分片陆续到达，一次调用于是从一个数字变成一串可以打时间戳的事件</text>
+  <g transform="translate(56 148)"><rect class="card" width="1168" height="212" rx="20"/><text class="h" x="28" y="44">SSE 流：一串 data: 行，不是一个 JSON 对象</text>
+<text class="m" x="28" y="94">data: {"choices":[{"delta":{"role":"assistant"}}]}</text><text class="s" x="700" y="94">流开始</text>
+<text class="m" x="28" y="122">data: {"choices":[{"delta":{"content":"…"}}]}</text><text class="s" x="700" y="122">正文增量，客户端在这里计时</text>
+<text class="m" x="28" y="150">data: {"choices":[{"delta":{},"finish_reason":"stop"}]}</text><text class="s" x="700" y="150">结束原因单独一片</text>
+<text class="m" x="28" y="178">data: {"usage":{"prompt_tokens":…,"completion_tokens":…}}</text><text class="s" x="700" y="178">只有 include_usage 才有</text>
+<text class="m" x="28" y="206">data: [DONE]</text><text class="s" x="700" y="206">这一行不是 JSON</text>
+</g>
+  <text class="b" x="56" y="386">客户端时间线</text>
+  <path class="flow" d="M120 440H1080"/>
+  <circle cx="150" cy="440" r="9" fill="#0F172A"/>
+  <text class="b" x="150" y="418" text-anchor="middle">请求发出</text>
+  <text class="s" x="150" y="472" text-anchor="middle">计时起点</text>
+  <circle cx="330" cy="440" r="9" fill="#0F172A"/>
+  <text class="b" x="330" y="418" text-anchor="middle">首个内容分片</text>
+  <text class="s" x="330" y="472" text-anchor="middle">第一段正文到达</text>
+  <circle cx="620" cy="440" r="9" fill="#0F172A"/>
+  <text class="b" x="620" y="418" text-anchor="middle">后续分片</text>
+  <text class="s" x="620" y="472" text-anchor="middle">相邻两片的间隔</text>
+  <circle cx="980" cy="440" r="9" fill="#0F172A"/>
+  <text class="b" x="980" y="418" text-anchor="middle">收到 [DONE]</text>
+  <text class="s" x="980" y="472" text-anchor="middle">流正常结束</text>
+  <circle cx="540" cy="440" r="6" fill="#94A3B8"/>
+  <circle cx="700" cy="440" r="6" fill="#94A3B8"/>
+  <circle cx="800" cy="440" r="6" fill="#94A3B8"/>
+  <path class="bracket" d="M150 496V516H330V496"/>
+  <text class="s" x="240" y="540" text-anchor="middle" fill="#0F172A">首个内容分片等待</text>
+  <path class="bracket" d="M150 556V576H980V556"/>
+  <text class="s" x="565" y="600" text-anchor="middle" fill="#0F172A">整次调用时长</text>
+  <g transform="translate(1000 496)"><rect class="soft" width="224" height="112" rx="16"/><text class="s" x="20" y="34" fill="#0F172A">两种计数分开记</text><text class="s" x="20" y="62">stream_chunks 客户端数</text><text class="s" x="20" y="90">output_tokens 服务端给</text></g>
+  <rect class="take" x="56" y="642" width="1168" height="54" rx="14"/><text class="tl" x="80" y="675">关键结论</text><text class="tv" x="184" y="676">客户端能记下四个时刻、闭合两段区间；分片数与 token 数必须分开记。</text>
+</svg>

@@ -66,7 +66,7 @@ def analyze_request(events: list[dict[str, Any]]) -> dict[str, Any]:
         "durations_ms": {
             "admission": _duration(timestamps, "request_received", "queued"),
             "queue": _duration(timestamps, "queued", "scheduled"),
-            "prefill": _duration(timestamps, "scheduled", "first_token"),
+            "scheduled_to_first_token": _duration(timestamps, "scheduled", "first_token"),
             "decode": _duration(timestamps, "first_token", "last_token"),
             "response_tail": _duration(timestamps, "last_token", "finished"),
             "end_to_end": end_to_end,

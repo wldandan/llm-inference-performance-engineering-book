@@ -100,3 +100,14 @@ python3 -m unittest discover -s code/ch02 -p 'test_*.py'
 ```
 
 测试覆盖 SSE payload、客户端/服务端证据分层、缺失服务端指标、Prometheus 解析与增量、正常/取消/失败状态，以及 CLI 输出。单元测试不需要 GPU；课程主 Demo 的验收仍必须连接真实 GPU 上的 vLLM。
+
+## 7. 参考文档
+
+本章字段名与阶段边界的出处：
+
+- [vLLM RequestStatus](https://docs.vllm.ai/en/stable/api/vllm/v1/request/)：2.2 节归一化状态的对照来源。
+- [vLLM Per-Request Metrics](https://docs.vllm.ai/en/latest/features/per_request_metrics/)：`time_to_first_token_ms` 起点的依据，2.10 节的版本注意事项来自这里。
+- [vLLM Production Metrics](https://docs.vllm.ai/en/latest/usage/metrics/)：Prometheus 指标名与类型，采集 delta 时对照。
+- [vLLM Benchmark CLI：Latency Metrics](https://docs.vllm.ai/en/stable/benchmarking/cli/)：官方压测工具的指标口径，第 7 章建立 Baseline 时对照。
+
+链接会随 vLLM 版本变化。核对字段之前先确认文档版本与 `environment.vllm_version` 一致。

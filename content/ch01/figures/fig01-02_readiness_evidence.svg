@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="fig-title fig-desc" data-figure-system="chapter01-v2" fill="#0F172A">
+  <title id="fig-title">图 1-2 三层就绪证据</title><desc id="fig-desc">进程、模型列表和真实生成三层证据自下而上排列，每层写出能证明什么与仍不能证明什么。</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker><style>
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    .k{font-size:14px;font-weight:700;letter-spacing:2px;fill:#64748B}
+    .t{font-size:32px;font-weight:750}
+    .sub{font-size:16px;fill:#64748B}
+    .card{fill:#FFFFFF;stroke:#CBD5E1;stroke-width:1.8}
+    .soft{fill:#F1F5F9;stroke:#CBD5E1;stroke-width:1.3}
+    .dark{fill:#0F172A}
+    .h{font-size:20px;font-weight:750}
+    .hw{font-size:20px;font-weight:750;fill:#FFFFFF}
+    .s{font-size:15px;fill:#64748B}
+    .sw{font-size:15px;fill:#CBD5E1}
+    .b{font-size:17px;font-weight:700}
+    .m{font-size:15px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .flow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#arrow)}
+    .bracket{fill:none;stroke:#64748B;stroke-width:2}
+    .divider{stroke:#E2E8F0;stroke-width:1.5}
+    .take{fill:#0F172A}
+    .tl{font-size:14px;font-weight:700;letter-spacing:1px;fill:#CBD5E1}
+    .tv{font-size:19px;font-weight:650;fill:#FFFFFF}
+</style></defs>
+  <rect width="1280" height="720" fill="#F8FAFC"/>
+  <text class="k" x="56" y="46">READINESS EVIDENCE · 02</text><text class="t" x="56" y="84">三层就绪证据</text><text class="sub" x="56" y="114">“服务已启动”至少有三种含义，上一层通过不代表下一层通过</text>
+  <text class="b" x="404" y="168">能证明什么</text>
+  <text class="b" x="838" y="168">仍不能证明什么</text>
+  <g transform="translate(56 182)"><rect class="card" width="1168" height="112" rx="20"/><text class="h" x="32" y="52">第三层 · 真实生成</text><text class="s" x="32" y="84">发送 Chat Completions（1.4 动手做）</text><line class="divider" x1="330" y1="18" x2="330" y2="94"/><text class="s" x="362" y="64" fill="#0F172A">请求、模型执行和响应链路完整可用</text><line class="divider" x1="764" y1="18" x2="764" y2="94"/><text class="s" x="796" y="64">性能是否稳定、容量是否足够</text></g>
+  <path class="flow" d="M200 318V300"/>
+  <g transform="translate(56 322)"><rect class="card" width="1168" height="112" rx="20"/><text class="h" x="32" y="52">第二层 · 模型列表</text><text class="s" x="32" y="84">请求 /v1/models</text><line class="divider" x1="330" y1="18" x2="330" y2="94"/><text class="s" x="362" y="64" fill="#0F172A">API 可访问，目标模型名可发现</text><line class="divider" x1="764" y1="18" x2="764" y2="94"/><text class="s" x="796" y="64">模型能否完成一次生成</text></g>
+  <path class="flow" d="M200 458V440"/>
+  <g transform="translate(56 462)"><rect class="card" width="1168" height="112" rx="20"/><text class="h" x="32" y="52">第一层 · 进程</text><text class="s" x="32" y="84">查看启动终端或进程状态</text><line class="divider" x1="330" y1="18" x2="330" y2="94"/><text class="s" x="362" y="64" fill="#0F172A">vLLM 进程已经创建</text><line class="divider" x1="764" y1="18" x2="764" y2="94"/><text class="s" x="796" y="64">模型是否加载完成</text></g>
+  <g transform="translate(56 590)"><rect class="soft" width="1168" height="36" rx="12"/><text class="s" x="24" y="24" fill="#0F172A">排查失败时沿这三层从前往后找，停在最早失败的那一层</text></g>
+  <rect class="take" x="56" y="642" width="1168" height="54" rx="14"/><text class="tl" x="80" y="675">关键结论</text><text class="tv" x="184" y="676">进程存在只是第一层证据，三层都通过才算服务可交付。</text>
+</svg>

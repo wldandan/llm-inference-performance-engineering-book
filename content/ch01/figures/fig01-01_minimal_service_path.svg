@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="fig-title fig-desc" data-figure-system="chapter01-v2" fill="#0F172A">
+  <title id="fig-title">图 1-1 第一个 LLM 服务的最小运行链路</title><desc id="fig-desc">客户端、vLLM API、模型与 GPU 四个环节串成一条本机链路，并标出这次运行的环境前提。</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker><style>
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    .k{font-size:14px;font-weight:700;letter-spacing:2px;fill:#64748B}
+    .t{font-size:32px;font-weight:750}
+    .sub{font-size:16px;fill:#64748B}
+    .card{fill:#FFFFFF;stroke:#CBD5E1;stroke-width:1.8}
+    .soft{fill:#F1F5F9;stroke:#CBD5E1;stroke-width:1.3}
+    .dark{fill:#0F172A}
+    .h{font-size:20px;font-weight:750}
+    .hw{font-size:20px;font-weight:750;fill:#FFFFFF}
+    .s{font-size:15px;fill:#64748B}
+    .sw{font-size:15px;fill:#CBD5E1}
+    .b{font-size:17px;font-weight:700}
+    .m{font-size:15px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .flow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#arrow)}
+    .bracket{fill:none;stroke:#64748B;stroke-width:2}
+    .divider{stroke:#E2E8F0;stroke-width:1.5}
+    .take{fill:#0F172A}
+    .tl{font-size:14px;font-weight:700;letter-spacing:1px;fill:#CBD5E1}
+    .tv{font-size:19px;font-weight:650;fill:#FFFFFF}
+</style></defs>
+  <rect width="1280" height="720" fill="#F8FAFC"/>
+  <text class="k" x="56" y="46">MINIMAL PATH · 01</text><text class="t" x="56" y="84">第一个 LLM 服务的最小运行链路</text><text class="sub" x="56" y="114">本章只跑这一条链路：客户端与服务端同机，先排除防火墙、端口转发和跨机网络</text>
+  <text class="b" x="640" y="214" text-anchor="middle">同一台主机 · 127.0.0.1:8000</text>
+  <g transform="translate(90 250)"><rect class="card" width="230" height="140" rx="20"/><text class="h" x="115" y="62" text-anchor="middle">客户端</text><text class="s" x="115" y="96" text-anchor="middle">curl 或 streaming_client.py</text></g>
+  <path class="flow" d="M320 320H374"/>
+  <g transform="translate(380 250)"><rect class="card" width="230" height="140" rx="20"/><text class="h" x="115" y="62" text-anchor="middle">vLLM API</text><text class="s" x="115" y="96" text-anchor="middle">/v1/chat/completions</text></g>
+  <path class="flow" d="M610 320H664"/>
+  <g transform="translate(670 250)"><rect class="card" width="230" height="140" rx="20"/><text class="h" x="115" y="62" text-anchor="middle">模型</text><text class="s" x="115" y="96" text-anchor="middle">Qwen2.5-0.5B-Instruct</text></g>
+  <path class="flow" d="M900 320H954"/>
+  <g transform="translate(960 250)"><rect class="card" width="230" height="140" rx="20"/><text class="h" x="115" y="62" text-anchor="middle">GPU</text><text class="s" x="115" y="96" text-anchor="middle">加载权重并执行计算</text></g>
+  <g transform="translate(90 452)"><rect class="soft" width="1100" height="104" rx="18"/><text class="b" x="36" y="44">环境前提</text><text class="s" x="180" y="44">Python / vLLM / Driver / GPU / Model，五项都记实际输出</text><text class="s" x="36" y="80">先在本机跑通这条链路，再从开发机或别的服务访问；那时调用失败才能判定是网络路径问题</text></g>
+  <rect class="take" x="56" y="642" width="1168" height="54" rx="14"/><text class="tl" x="80" y="675">关键结论</text><text class="tv" x="184" y="676">先跑通本机最短链路，再考虑跨机访问和内部结构。</text>
+</svg>
