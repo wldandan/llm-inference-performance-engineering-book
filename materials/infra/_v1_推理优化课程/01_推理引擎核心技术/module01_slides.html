@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模块一：推理引擎核心技术</title>
+<style>
+  :root{
+    --bg:#0f1226; --card:#1a1f3a; --ink:#eef1ff; --dim:#aab2d5;
+    --p1:#7c5cff; --p2:#22d3ee; --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
+    --a:var(--p1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:radial-gradient(1200px 700px at 70% -10%,#2a2168 0,transparent 60%),var(--bg);
+    color:var(--ink); line-height:1.65; overflow:hidden;
+  }
+  .slide{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    padding:48px 22px 96px; text-align:center;
+    opacity:0; visibility:hidden; transform:translateY(18px);
+    transition:opacity .4s ease, transform .4s ease;
+    pointer-events:none;
+  }
+  .slide.active{opacity:1; visibility:visible; transform:none; pointer-events:auto}
+  .inner{max-width:720px; width:100%}
+
+  .kicker{color:var(--a);font-weight:800;letter-spacing:3px;font-size:15px;margin-bottom:14px}
+  .emoji{font-size:68px;line-height:1;margin-bottom:18px;display:block}
+  h1{font-size:clamp(32px,8vw,52px);line-height:1.2;margin:6px 0 14px;
+     background:linear-gradient(90deg,var(--p1),var(--p2));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(24px,6vw,36px);line-height:1.3;margin:4px 0 14px}
+  .big{font-size:clamp(22px,5.6vw,30px);font-weight:800;margin:8px 0;color:var(--ink)}
+  p{color:#dfe4ff;font-size:clamp(17px,4.4vw,21px)}
+  .sub{color:var(--dim)}
+  .accentword{color:var(--a)}
+
+  .eg{background:#12162e;border:1px solid #2b315c;border-left:4px solid var(--a);
+    border-radius:12px;padding:15px 17px;margin-top:14px;text-align:left;
+    font-size:clamp(15px,4vw,18px);line-height:1.65;color:#dfe4ff}
+  .eg .lbl{color:var(--a);font-weight:800;font-size:14px;letter-spacing:1px;
+    display:block;margin-bottom:7px}
+  .eg b{color:var(--ink)}
+  .eg .num{color:var(--warn);font-weight:800}
+
+  /* 对比卡片 */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .card{background:#12162e;border:1px solid #2b315c;border-radius:14px;padding:16px 14px;text-align:left}
+  .card .ic{font-size:32px;margin-bottom:8px;display:block}
+  .card b{display:block;font-size:clamp(16px,4vw,19px);margin-bottom:6px;color:var(--ink)}
+  .card span{color:var(--dim);font-size:clamp(13px,3.4vw,15px);line-height:1.5}
+  .card.good{border-top:3px solid var(--good)}
+  .card.warn{border-top:3px solid var(--warn)}
+  .card.bad{border-top:3px solid var(--bad)}
+  .card.blue{border-top:3px solid var(--p1)}
+  .card.cyan{border-top:3px solid var(--p2)}
+
+  /* 指标行 */
+  .metrics{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+  .metric{background:#12162e;border:1px solid #2b315c;border-radius:12px;
+    padding:14px 16px;flex:1;min-width:140px;text-align:center}
+  .metric .val{font-size:clamp(28px,7vw,40px);font-weight:900;color:var(--a);line-height:1}
+  .metric .label{color:var(--dim);font-size:13px;margin-top:4px}
+  .metric .desc{color:var(--ink);font-size:clamp(13px,3.4vw,15px);margin-top:6px}
+
+  /* 流程图 */
+  .flow{display:flex;align-items:center;justify-content:center;gap:0;margin-top:16px;flex-wrap:wrap}
+  .fbox{background:#12162e;border:1px solid #2b315c;border-radius:10px;
+    padding:12px 16px;text-align:center;min-width:110px}
+  .fbox b{display:block;font-size:clamp(14px,3.6vw,17px);color:var(--ink)}
+  .fbox span{color:var(--dim);font-size:12px}
+  .farrow{font-size:22px;color:var(--a);padding:0 8px}
+
+  /* 进化时间线 */
+  .timeline{margin-top:14px;text-align:left}
+  .titem{display:flex;gap:14px;align-items:flex-start;margin-bottom:12px}
+  .tnum{background:var(--a);color:#fff;border-radius:50%;width:28px;height:28px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto}
+  .ttext b{display:block;color:var(--ink);font-size:clamp(15px,3.8vw,18px)}
+  .ttext span{color:var(--dim);font-size:clamp(13px,3.3vw,15px)}
+
+  /* 对比表格 */
+  .tbl{width:100%;border-collapse:collapse;margin-top:14px;
+    font-size:clamp(13px,3.4vw,16px);overflow:hidden;border-radius:12px}
+  .tbl th,.tbl td{border:1px solid #2b315c;padding:10px 10px;text-align:center}
+  .tbl th{background:#23305c;color:var(--p2);font-weight:800}
+  .tbl td{background:#12162e}
+  .tbl tr td:first-child{color:var(--ink);font-weight:700;text-align:left}
+  .tbl .hi td{color:var(--good);font-weight:800;background:rgba(52,211,153,.08)}
+
+  /* 口诀 */
+  .motto{font-size:clamp(22px,5.5vw,36px);font-weight:900;margin:10px 0;
+    background:linear-gradient(90deg,var(--p2),var(--good));-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+
+  /* reveal按钮 */
+  button.reveal{margin-top:10px;background:linear-gradient(90deg,var(--p1),var(--p2));
+    color:#fff;border:0;padding:12px 18px;border-radius:11px;font-size:clamp(14px,3.6vw,16px);
+    font-weight:700;cursor:pointer;width:100%}
+  .answer{display:none;margin-top:10px;border-radius:12px;padding:14px;
+    font-size:clamp(14px,3.6vw,16px);line-height:1.6;
+    background:rgba(251,191,36,.1);border:1px solid var(--warn);text-align:left}
+  .answer.show{display:block;animation:pop .3s ease}
+  @keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+  .answer .tag{color:var(--warn);font-weight:800}
+
+  /* 控件 */
+  #bar{position:fixed;top:0;left:0;height:4px;width:0;
+    background:linear-gradient(90deg,var(--p1),var(--p2));transition:width .35s ease;z-index:30}
+  .nav{position:fixed;bottom:0;left:0;right:0;height:72px;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;background:linear-gradient(0deg,rgba(15,18,38,.95),transparent)}
+  .nav button{background:#1a1f3a;border:1px solid #2b315c;color:var(--ink);
+    width:48px;height:48px;border-radius:50%;font-size:22px;cursor:pointer;
+    display:grid;place-items:center;transition:.15s}
+  .nav button:hover{border-color:var(--p1)}
+  .nav button:disabled{opacity:.3;cursor:default}
+  #cnt{color:var(--dim);font-size:14px;font-weight:700;letter-spacing:1px}
+  .hint{position:fixed;bottom:84px;left:0;right:0;text-align:center;
+    color:#6f78a6;font-size:13px;z-index:20;animation:bob 1.6s ease-in-out infinite;pointer-events:none}
+  .hint.gone{display:none}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+
+  /* 模块标签 */
+  .mod-tag{display:inline-block;background:rgba(124,92,255,.2);border:1px solid var(--p1);
+    border-radius:20px;padding:4px 14px;font-size:13px;color:var(--p1);
+    font-weight:700;margin-bottom:12px}
+  .lecture-tag{display:inline-block;background:rgba(34,211,238,.15);border:1px solid var(--p2);
+    border-radius:20px;padding:3px 12px;font-size:13px;color:var(--p2);
+    font-weight:700;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+
+<!-- ①封面 -->
+<section class="slide active">
+  <div class="inner">
+    <div class="mod-tag">AI Infra 优化实践 · 模块一</div>
+    <span class="emoji">⚡</span>
+    <h1>推理引擎<br>核心技术</h1>
+    <p class="sub">你按下发送键，到屏幕上出现第一个字——<br>GPU 里到底发生了什么？为什么有时候快，有时候慢？</p>
+    <p style="margin-top:16px;color:var(--dim);font-size:14px">6讲 · 12学时 · 点击或按 → 翻页</p>
+  </div>
+</section>
+
+<!-- ②本模块解决的问题 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">我们要回答的问题</div>
+    <h2>为什么 ChatGPT<br>有时候"秒回"，<br>有时候却一直在转圈？</h2>
+    <div class="eg">
+      <span class="lbl">💡 真正的答案不是"服务器忙"</span>
+      是因为大模型的推理分为两个截然不同的阶段，<b>每个阶段的瓶颈完全不同</b>。<br>
+      搞清楚这两个阶段，你就掌握了 AI Infra 优化的核心钥匙。
+    </div>
+  </div>
+</section>
+
+<!-- ③模块路线图 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">本模块 6 讲路线图</div>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--p1)">1</div>
+        <div class="ttext"><b>LLM 推理全流程</b><span> — Prefill/Decode 两阶段，Memory-Bound 本质</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--p2)">2</div>
+        <div class="ttext"><b>注意力机制演进</b><span> — MHA→GQA→MLA，Flash Attention</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">3</div>
+        <div class="ttext"><b>量化技术全栈</b><span> — FP16→INT4，GPTQ/AWQ/GGUF</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">4</div>
+        <div class="ttext"><b>投机采样</b><span> — 小模型草稿，大模型验证，2-4x 加速</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:#e879f9">5</div>
+        <div class="ttext"><b>批处理策略</b><span> — Continuous Batching，GPU 利用率 40%→75%</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--bad)">6</div>
+        <div class="ttext"><b>算子融合</b><span> — 减少 HBM I/O，Triton 自定义 Kernel</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ④讲1封面 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="lecture-tag">讲 1 · LLM 推理全流程</div>
+    <span class="emoji">🎮</span>
+    <h2>你每发一条消息，<br>GPU 要做两件事</h2>
+    <p class="sub">而且这两件事，难度和瓶颈<b style="color:var(--ink)">完全不同</b></p>
+  </div>
+</section>
+
+<!-- ⑤打字预言机类比 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">💡 打字预言机</div>
+    <h2>手机输入法怎么猜下一个字？</h2>
+    <div class="eg">
+      <span class="lbl">🎮 就像你玩输入法</span>
+      你打"今天天气"，手机猜"真" → "好" → "啊"……<br>
+      每次只猜<b>一个字</b>，等你确认再猜下一个。<br><br>
+      <b>ChatGPT 就是这个原理</b>——只不过用了几百亿个参数来猜。<br>
+      关键问题：你写了 <span class="num">1000 个字</span>，它猜第 1001 个字时，<br>
+      需要<b>回顾之前所有 1000 个字</b>——这就是为什么越长的对话越慢。
+    </div>
+  </div>
+</section>
+
+<!-- ⑥两阶段核心 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">讲 1 · 核心概念</div>
+    <h2>两个阶段，两种性质</h2>
+    <div class="cards">
+      <div class="card blue">
+        <span class="ic">📖</span>
+        <b>Prefill（预填充）</b>
+        <span>读懂你的问题<br>并行处理所有输入 Token<br>GPU 算力<b style="color:var(--good)">满载</b></span>
+      </div>
+      <div class="card warn">
+        <span class="ic">✍️</span>
+        <b>Decode（解码）</b>
+        <span>一个字一个字地写答案<br>串行生成，无法并行<br>GPU 算力<b style="color:var(--bad)">严重浪费</b></span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:16px">
+      <div class="fbox"><b>你的问题</b><span>输入 Token</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox" style="border-color:var(--p1)"><b>Prefill</b><span>并行，快</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox" style="border-color:var(--warn)"><b>Decode</b><span>串行，慢</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox"><b>回复</b><span>逐字输出</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ⑦三个性能指标 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 1 · 性能指标</div>
+    <h2>三把尺子量推理速度</h2>
+    <div class="metrics">
+      <div class="metric">
+        <div class="val">TTFT</div>
+        <div class="label">Time To First Token</div>
+        <div class="desc">发消息→看到第一个字的等待<br><b style="color:var(--p2)">类比：餐厅出第一道菜</b></div>
+      </div>
+      <div class="metric">
+        <div class="val">TBT</div>
+        <div class="label">Time Between Tokens</div>
+        <div class="desc">每两个字之间的间隔<br><b style="color:var(--p2)">类比：出菜的节奏</b></div>
+      </div>
+      <div class="metric">
+        <div class="val" style="font-size:clamp(18px,4.5vw,28px)">吞吐量</div>
+        <div class="label">Throughput</div>
+        <div class="desc">每秒处理多少请求<br><b style="color:var(--p2)">类比：餐厅每小时几桌</b></div>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:14px">
+      <span class="lbl">⚠️ 工程真相</span>
+      TTFT 低 和 吞吐量高 往往是<b>矛盾的</b>。<br>
+      想要低延迟？优先处理当前请求。想要高吞吐？批量处理。无法两全。
+    </div>
+  </div>
+</section>
+
+<!-- ⑧Memory-Bound直觉 -->
+<section class="slide" style="--a:var(--bad)">
+  <div class="inner">
+    <div class="kicker">讲 1 · 核心洞察</div>
+    <h2>Decode 阶段的真正瓶颈：<br>不是算力，是<span style="color:var(--bad)">内存带宽</span></h2>
+    <div class="eg">
+      <span class="lbl">🏎️ 类比：法拉利跟着自行车队</span>
+      Decode 时，GPU 每次只生成 1 个 Token（计算量极小），<br>
+      但要把<b>整个模型权重（几十 GB）</b>从显存里读一遍。<br><br>
+      就像一辆法拉利（GPU 算力）跟着自行车队（数据传输）——<br>
+      <b>速度受限于搬数据，不是算数</b>。
+    </div>
+    <p class="big" style="margin-top:14px;color:var(--bad)">GPU 利用率只有 ~20%</p>
+    <p class="sub">算力在等数据，不是数据在等算力</p>
+  </div>
+</section>
+
+<!-- ⑨讲2封面 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="lecture-tag">讲 2 · 注意力机制演进</div>
+    <span class="emoji">🤝</span>
+    <h2>班级里的握手问题</h2>
+    <p class="sub">人数翻倍，握手次数翻四倍——<br>这就是为什么长对话指数级变慢</p>
+  </div>
+</section>
+
+<!-- ⑩握手类比 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">💡 班级握手</div>
+    <h2>O(n²) 复杂度是什么意思？</h2>
+    <div class="eg">
+      <span class="lbl">🤝 班级里每个人都要和所有人握手</span>
+      10人班级：10 × 10 = <b class="num">100 次握手</b><br>
+      100人班级：100 × 100 = <b class="num">10,000 次握手</b>（人数×10，握手×100！）<br>
+      1000人班级：1000 × 1000 = <b class="num">100万次握手</b><br><br>
+      <b>注意力机制就是这个握手游戏</b>——<br>
+      每个 Token 要和其他所有 Token 计算相关性。<br>
+      序列长度翻倍 → 计算量翻<b>四倍</b>。
+    </div>
+  </div>
+</section>
+
+<!-- ⑪MHA到MLA演进 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · KV 头数演进</div>
+    <h2>KV Cache 太大了怎么办？<br>减少头数！</h2>
+    <table class="tbl">
+      <tr><th>方案</th><th>KV 头数</th><th>内存占用</th><th>速度</th><th>质量</th></tr>
+      <tr><td>MHA（原版）</td><td>32</td><td>基准 ×1.0</td><td>慢</td><td>最好</td></tr>
+      <tr><td>MQA</td><td>1</td><td>基准 ×0.06</td><td>最快</td><td>稍差</td></tr>
+      <tr class="hi"><td>GQA（Llama-3）</td><td>8</td><td>基准 ×0.25</td><td>快</td><td>≈MHA</td></tr>
+      <tr class="hi"><td>MLA（DeepSeek）</td><td>低秩压缩</td><td>基准 ×0.05</td><td>很快</td><td>≈MHA</td></tr>
+    </table>
+    <p class="sub" style="margin-top:12px">GQA 是目前工业界最主流的选择 ✅</p>
+  </div>
+</section>
+
+<!-- ⑫Flash Attention -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · Flash Attention</div>
+    <h2>草稿纸 vs 黑板</h2>
+    <div class="eg">
+      <span class="lbl">📋 普通注意力的问题</span>
+      把整个注意力矩阵写到<b>黑板（GPU 显存 HBM）</b>→ 再从黑板读出来算 → 再写回黑板<br>
+      黑板读写速度慢，大量时间浪费在"搬数据"上。
+    </div>
+    <div class="eg" style="margin-top:10px;--a:var(--good)">
+      <span class="lbl">⚡ Flash Attention 的方案</span>
+      用 SRAM（超快的<b>草稿纸</b>，但很小）<b>分块计算</b><br>
+      中间结果永远不写回 HBM → 只在最后输出一次<br>
+      数学技巧：Online Softmax（边算边归一化，不存整个矩阵）
+    </div>
+    <div class="metrics" style="margin-top:12px">
+      <div class="metric"><div class="val" style="color:var(--good)">3-8x</div><div class="desc">速度提升</div></div>
+      <div class="metric"><div class="val" style="color:var(--good)">-80%</div><div class="desc">内存占用</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ⑬讲3封面 -->
+<section class="slide" style="--a:var(--warn)">
+  <div class="inner">
+    <div class="lecture-tag">讲 3 · 量化技术全栈</div>
+    <span class="emoji">🎯</span>
+    <h2>电影评分：<br>8.734分 还是 9分？</h2>
+    <p class="sub">精度越高越准确，但越占空间——<br>量化就是找到这个平衡点</p>
+  </div>
+</section>
+
+<!-- ⑭量化类比 -->
+<section class="slide" style="--a:var(--warn)">
+  <div class="inner">
+    <div class="kicker">💡 评分精度</div>
+    <h2>数字的精度和空间是矛盾的</h2>
+    <div class="eg">
+      <span class="lbl">🎬 给电影打分</span>
+      超精确（FP32）：<b class="num">8.734521 分</b> → 占 4 字节，最准确<br>
+      普通（FP16）：<b class="num">8.73 分</b> → 占 2 字节，一般准确<br>
+      粗糙（INT8）：<b class="num">9 分</b> → 占 1 字节，还能用<br>
+      极简（INT4）：<b class="num">好/中/差</b> → 占 0.5 字节，省空间<br><br>
+      <b>大模型的几百亿个参数就是这些"分数"</b>。<br>
+      把精度降低（量化），可以让模型变小 4-8 倍，推理速度翻倍。
+    </div>
+  </div>
+</section>
+
+<!-- ⑮量化方案对比 -->
+<section class="slide" style="--a:var(--warn)">
+  <div class="inner">
+    <div class="kicker">讲 3 · 三大主流方案</div>
+    <h2>怎么选量化方案？</h2>
+    <table class="tbl">
+      <tr><th>方案</th><th>核心思路</th><th>模型大小</th><th>质量损失</th><th>适用场景</th></tr>
+      <tr><td>FP16</td><td>原始格式</td><td>14GB</td><td>无</td><td>生产高精度</td></tr>
+      <tr><td>FP8</td><td>H100 原生支持</td><td>7GB</td><td>极小</td><td>H100 首选</td></tr>
+      <tr class="hi"><td>AWQ INT4</td><td>保护重要权重</td><td>3.5GB</td><td>小</td><td>消费级 GPU</td></tr>
+      <tr><td>GGUF Q4</td><td>混合比特量化</td><td>4GB</td><td>小</td><td>边缘/CPU</td></tr>
+    </table>
+    <p style="margin-top:10px;font-size:14px;color:var(--dim)">以 LLaMA-2-7B 为例</p>
+  </div>
+</section>
+
+<!-- ⑯讲4封面 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="lecture-tag">讲 4 · 投机采样</div>
+    <span class="emoji">🎲</span>
+    <h2>小助手先猜，<br>老师来批改</h2>
+    <p class="sub">不需要更多算力，速度却能提升 2-4 倍——<br>投机采样是怎么做到的？</p>
+  </div>
+</section>
+
+<!-- ⑰投机采样类比 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">💡 小助手猜答案</div>
+    <h2>验证比生成便宜得多</h2>
+    <div class="eg">
+      <span class="lbl">📝 考试场景</span>
+      <b>普通方式：</b>老师（大模型）一个字一个字地写答案，写完一个才写下一个。<br><br>
+      <b>投机采样：</b><br>
+      ① 小助手（小模型）先猜出接下来 <b class="num">5 个字</b><br>
+      ② 老师（大模型）<b>同时检验</b>这 5 个字对不对<br>
+      ③ 都对 → 直接用，等效一次生成 5 个字！<br>
+         前 3 对、第 4 错 → 接受前 3 个，第 4 个重新生成<br><br>
+      <b>关键洞察：老师检验 5 个字的成本 ≈ 自己写 1 个字</b>
+    </div>
+  </div>
+</section>
+
+<!-- ⑱投机采样效果 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">讲 4 · 方案对比</div>
+    <h2>投机采样的各种变体</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--p1)">1</div>
+        <div class="ttext"><b>Speculative Decoding</b><span> — 独立小模型草稿，2-3x 加速</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--p2)">2</div>
+        <div class="ttext"><b>Medusa</b><span> — 大模型自身多头预测，无需额外模型，2-2.5x</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">3</div>
+        <div class="ttext"><b>EAGLE</b><span> — 用特征层预测（更准确），3-4x</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">4</div>
+        <div class="ttext"><b>EAGLE-2</b><span> — 动态草稿树，自适应分支，3.5-4.5x 🔥</span></div>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:10px">
+      <span class="lbl">⚠️ 注意</span>
+      草稿接受率越高，加速比越大。代码补全（规律强）效果好；创意写作（随机性高）效果差。
+    </div>
+  </div>
+</section>
+
+<!-- ⑲讲5封面 -->
+<section class="slide" style="--a:#e879f9">
+  <div class="inner">
+    <div class="lecture-tag">讲 5 · 批处理策略</div>
+    <span class="emoji">🍽️</span>
+    <h2>餐厅服务的演进史</h2>
+    <p class="sub">从"等10个人坐满才开始上菜"<br>到"谁吃完谁的位置就给新客人"</p>
+  </div>
+</section>
+
+<!-- ⑳批处理演进 -->
+<section class="slide" style="--a:#e879f9">
+  <div class="inner">
+    <div class="kicker">💡 餐厅模型</div>
+    <h2>批处理策略的进化</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:#666">旧</div>
+        <div class="ttext"><b>Static Batching（老式团餐）</b>
+          <span>等满 N 个请求才开始处理，短请求等长请求结束，GPU 大量空转</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">↑</div>
+        <div class="ttext"><b>Dynamic Batching（改良版）</b>
+          <span>超时就开始，稍好一点，但批次内不同长度还是绑在一起</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:#e879f9">✅</div>
+        <div class="ttext"><b>Continuous Batching（现代快餐）</b>
+          <span>谁做完谁的位置给新请求，GPU 始终满载 → 利用率 40% → 75%！</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">✨</div>
+        <div class="ttext"><b>Chunked Prefill（防止大单占厨房）</b>
+          <span>长 Prefill 拆成小块，与 Decode 交替执行，消除延迟尖刺</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ㉑为什么批处理有效 -->
+<section class="slide" style="--a:#e879f9">
+  <div class="inner">
+    <div class="kicker">讲 5 · 核心原理</div>
+    <h2>为什么批处理能提升 GPU 利用率？</h2>
+    <div class="eg">
+      <span class="lbl">🔑 单请求 Decode 的问题</span>
+      每次只生成 1 个 Token，但要把<b>整个模型权重（几十 GB）</b>从显存搬出来读一遍。<br>
+      这个"搬运成本"是固定的，1 个 Token 和 32 个 Token 的搬运量几乎相同。
+    </div>
+    <div class="eg" style="margin-top:10px;--a:var(--good)">
+      <span class="lbl">💡 批处理的价值</span>
+      把 32 个请求合并处理，权重搬运成本<b>被 32 个请求分摊</b>，<br>
+      等效于每个请求只用了 1/32 的搬运成本。<br>
+      吞吐量提升近线性（在 Memory-Bound 区域）。
+    </div>
+  </div>
+</section>
+
+<!-- ㉒讲6封面 -->
+<section class="slide" style="--a:var(--bad)">
+  <div class="inner">
+    <div class="lecture-tag">讲 6 · 算子融合与内核优化</div>
+    <span class="emoji">🛒</span>
+    <h2>合并购物清单</h2>
+    <p class="sub">多次去超市 vs 一次买完所有东西——<br>减少"往返次数"，不是加快走路速度</p>
+  </div>
+</section>
+
+<!-- ㉓算子融合类比 -->
+<section class="slide" style="--a:var(--bad)">
+  <div class="inner">
+    <div class="kicker">💡 合并购物清单</div>
+    <h2>为什么要减少 HBM 读写次数？</h2>
+    <div class="cards">
+      <div class="card bad">
+        <span class="ic">🚶</span>
+        <b>未融合（多次往返）</b>
+        <span>① 去超市买面粉，回家放好<br>② 再去买鸡蛋，回家放好<br>③ 再去买牛奶，回家放好<br>→ 3次往返，大量时间在路上</span>
+      </div>
+      <div class="card good">
+        <span class="ic">🚗</span>
+        <b>算子融合（一次搞定）</b>
+        <span>① 一次去超市，把面粉+鸡蛋+牛奶都买回来<br>→ 1次往返，I/O成本大幅降低<br>→ 速度提升 2-4x</span>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">🔑 GPU版本</span>
+      「去超市」= 读写 HBM（慢），「购物」= 数学计算（快）<br>
+      减少 HBM 往返次数 = 算子融合（Kernel Fusion）
+    </div>
+  </div>
+</section>
+
+<!-- ㉔常见融合场景 -->
+<section class="slide" style="--a:var(--bad)">
+  <div class="inner">
+    <div class="kicker">讲 6 · 常见融合场景</div>
+    <h2>Transformer 里哪些地方可以融合？</h2>
+    <table class="tbl">
+      <tr><th>融合类型</th><th>融合前</th><th>效果</th></tr>
+      <tr><td>Fused Attention</td><td>Q/K/V → Attn → Proj 共 8 次 HBM 读写</td><td>→ 2 次</td></tr>
+      <tr class="hi"><td>Fused MLP</td><td>Linear → GELU → Linear 共 6 次</td><td>→ 2 次</td></tr>
+      <tr><td>Fused LayerNorm</td><td>Norm → 激活函数 共 4 次</td><td>→ 1 次</td></tr>
+      <tr><td>Fused RMSNorm+Quant</td><td>RMSNorm → 量化 共 4 次</td><td>→ 1 次</td></tr>
+    </table>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">🛠️ 工具</span>
+      Triton（Python 风格写 GPU Kernel）、torch.compile（自动融合）、FlashInfer（推理专用）
+    </div>
+  </div>
+</section>
+
+<!-- ㉕模块总结 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">模块总结</div>
+    <h2>六个核心结论</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--p1)">1</div>
+        <div class="ttext"><b>Decode 是主要瓶颈，且是 Memory-Bound</b><span> — 加 Batch，摊薄带宽成本</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--p2)">2</div>
+        <div class="ttext"><b>GQA 是注意力优化的工业标准</b><span> — MLA 是 2025+ 新趋势</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">3</div>
+        <div class="ttext"><b>AWQ INT4 是消费级 GPU 的最优量化</b><span> — 质量损失极小，速度翻倍</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">4</div>
+        <div class="ttext"><b>投机采样：验证比生成便宜</b><span> — EAGLE-2 是当前最优方案</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:#e879f9">5</div>
+        <div class="ttext"><b>Continuous Batching 让 GPU 利用率从 40% → 75%</b><span> — vLLM 核心机制</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--bad)">6</div>
+        <div class="ttext"><b>算子融合减少 HBM 读写，不是增加算力</b><span> — Flash Attention 本质</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ㉖结尾 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <span class="emoji">🚀</span>
+    <div class="kicker">下一步</div>
+    <div class="motto">KV Cache：推理的真正内存黑洞</div>
+    <p style="margin-top:16px">模块一建立了推理的心智模型。<br>模块二深入 <b style="color:var(--p2)">KV Cache</b>——<br>这是生产系统里占内存最多、优化空间最大的地方。</p>
+    <p class="sub" style="margin-top:14px">PagedAttention · Prefix Caching · 分布式 KV 存储</p>
+  </div>
+</section>
+
+<div class="hint" id="hint">点击屏幕 / → 翻页</div>
+
+<div class="nav">
+  <button id="prev" aria-label="上一页">‹</button>
+  <span id="cnt">1 / 26</span>
+  <button id="next" aria-label="下一页">›</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const bar=document.getElementById('bar');
+  const cnt=document.getElementById('cnt');
+  const prevBtn=document.getElementById('prev');
+  const nextBtn=document.getElementById('next');
+  const hint=document.getElementById('hint');
+  let i=0;
+
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    bar.style.width=((i+1)/slides.length*100)+'%';
+    cnt.textContent=(i+1)+' / '+slides.length;
+    prevBtn.disabled=i===0;
+    nextBtn.disabled=i===slides.length-1;
+  }
+  function next(){ if(i<slides.length-1) show(i+1); }
+  function prev(){ if(i>0) show(i-1); }
+
+  nextBtn.addEventListener('click',e=>{e.stopPropagation();next();});
+  prevBtn.addEventListener('click',e=>{e.stopPropagation();prev();});
+
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown',' ','Enter'].includes(e.key)){e.preventDefault();next();}
+    if(['ArrowLeft','ArrowUp'].includes(e.key)){e.preventDefault();prev();}
+  });
+
+  document.body.addEventListener('click',e=>{
+    if(e.target.closest('a,button,.nav')) return;
+    next();
+  });
+
+  let x0=null;
+  document.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;},{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(x0===null) return;
+    const dx=e.changedTouches[0].clientX-x0;
+    if(Math.abs(dx)>50){ dx<0?next():prev(); }
+    x0=null;
+  },{passive:true});
+
+  function hideHint(){ hint.classList.add('gone'); }
+  ['click','keydown','touchend'].forEach(ev=>document.addEventListener(ev,hideHint,{once:true}));
+
+  show(0);
+</script>
+</body>
+</html>

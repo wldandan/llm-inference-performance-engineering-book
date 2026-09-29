@@ -236,6 +236,12 @@ class TelemetryCollector:
     def __init__(self, config: dict, output_path: Path):
         telemetry = copy.deepcopy(config.get("telemetry", config))
         self._sources = telemetry.get("sources", [])
+        self._local_endpoint = None
+        if telemetry.get("local", {}).get("enabled"):
+            from .config import Endpoint, local_ollama_url
+
+            self._local_endpoint = Endpoint.model_validate(config.get("endpoint", {})).model_dump()
+            local_ollama_url(self._local_endpoint["base_url"])
         self._interval_s = telemetry.get("interval_s", 1.0)
         self._output_path = Path(output_path)
         self._samples: list[dict] = []
@@ -251,7 +257,7 @@ class TelemetryCollector:
         with self._lifecycle_lock:
             if self._stopped:
                 raise RuntimeError("collector_stopped")
-            if self._thread is not None or not self._sources:
+            if self._thread is not None or (not self._sources and self._local_endpoint is None):
                 return
             try:
                 self._output_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -272,11 +278,17 @@ class TelemetryCollector:
     def _poll(self, output: TextIO) -> None:
         try:
             with output:
+                readers = []
+                if self._local_endpoint is not None:
+                    from .local_telemetry import collect_ollama, collect_system
+
+                    readers.extend([collect_system, lambda: collect_ollama(self._local_endpoint)])
+                readers.extend(lambda source=source: scrape_source(source) for source in self._sources)
                 while not self._stop_event.is_set():
-                    for source in self._sources:
+                    for read in readers:
                         if self._stop_event.is_set():
                             break
-                        sample = scrape_source(source)
+                        sample = read()
                         output.write(json.dumps(sample, ensure_ascii=True, allow_nan=False) + "\n")
                         output.flush()
                         with self._samples_lock:

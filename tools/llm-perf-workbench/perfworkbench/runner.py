@@ -223,7 +223,7 @@ class ExperimentManager:
         requests = materialize_requests(spec)
         for record in requests:
             append_jsonl(directory / "requests.jsonl", record)
-        collector = TelemetryCollector(spec["telemetry"], directory / "telemetry.jsonl")
+        collector = TelemetryCollector(spec, directory / "telemetry.jsonl")
         collector.start()
         process = None
         try:

@@ -165,9 +165,22 @@ class MetricSource(Contract):
     _url = field_validator("url")(validate_url)
 
 
+class LocalTelemetry(Contract):
+    enabled: bool = False
+
+
+def local_ollama_url(base_url: str) -> str:
+    """Only observe an explicitly selected loopback service, without proxy path guessing."""
+    parts = urlsplit(validate_url(base_url))
+    if parts.hostname not in {"localhost", "127.0.0.1", "::1"} or parts.path not in {"", "/v1"}:
+        raise ValueError("local observation requires a loopback endpoint with root or /v1 path")
+    return parts._replace(path="/api/ps").geturl()
+
+
 class Telemetry(Contract):
     interval_s: Annotated[float, Field(ge=0.1, le=3600)] = 1
     sources: list[MetricSource] = Field(default_factory=list, max_length=16)
+    local: LocalTelemetry = Field(default_factory=LocalTelemetry)
 
 
 class ExperimentSpec(Contract):
@@ -187,6 +200,8 @@ class ExperimentSpec(Contract):
 
     @model_validator(mode="after")
     def guard_plan(self):
+        if self.telemetry.local.enabled:
+            local_ollama_url(self.endpoint.base_url)
         if len({r.id for r in self.dataset}) != len(self.dataset):
             raise ValueError("dataset sample ids must be unique")
         categories = {row.category for row in self.dataset}

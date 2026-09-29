@@ -139,7 +139,7 @@ def fixture_run(run_id=RUN_ID):
 
 @pytest.fixture
 def api_fixture():
-    state = {"runs": [], "calls": [], "error": None}
+    state = {"runs": [], "calls": [], "error": None, "probe_ready": True, "probe_started": threading.Event()}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -202,8 +202,23 @@ def api_fixture():
                     }
                 )
             if self.path == "/api/preflight":
+                state["probe_started"].set()
+                if state.get("probe_release") is not None:
+                    state["probe_release"].wait(timeout=10)
                 return self.reply(
-                    {"models": ["fixture"], "sync": {"status": "ok"}, "stream": {"status": "ok"}}
+                    {
+                        "ready": state["probe_ready"],
+                        "model_list": [payload["model"]],
+                        "model_list_status": "available",
+                        "checks": [
+                            {"requested_stream": stream, "success": state["probe_ready"]}
+                            for stream in (False, True)
+                        ],
+                        "context_length": payload.get("context_length"),
+                        "context_source": "user_declared" if payload.get("context_length") else "unknown",
+                        "generation_budget": {"max_requests": 2, "max_output_tokens": 16},
+                        "environment": payload.get("environment", {}),
+                    }
                 )
             if self.path == "/api/runs":
                 run = fixture_run()
@@ -510,6 +525,185 @@ def test_simple_editor_rate_scan_summary_matches_actual_plan(browser_page, api_f
 
 
 @pytest.mark.e2e
+def test_model_connection_groups_fields_without_duplicates(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    card = page.locator("#model-connection")
+    expect(card.get_by_role("button", name="连接模型", exact=True)).to_be_visible()
+    names = [
+        "endpoint.model",
+        "endpoint.base_url",
+        "endpoint.api_key_env",
+        "endpoint.context_length",
+        "endpoint.environment",
+    ]
+    for name in names:
+        expect(card.locator(f'[name="{name}"]')).to_have_count(1)
+        expect(page.locator(f'[name="{name}"]')).to_have_count(1)
+    expect(card.locator('[name="endpoint.api_key_env"]')).not_to_be_visible()
+    page.locator("#model-options > summary").click()
+    for name in names:
+        expect(card.locator(f'[name="{name}"]')).to_be_visible()
+    expect(card.locator(".help-trigger")).to_have_count(3)
+    page.locator("#advanced-settings > summary").click()
+    expect(page.locator("#connection-options > summary")).to_have_text("实验信息")
+    expect(page.locator('#connection-options [name^="endpoint."]')).to_have_count(0)
+    spec = copy.deepcopy(SPEC)
+    spec["endpoint"].update(api_key_env="MODEL_API_KEY", context_length=32768, environment={"engine": "vllm"})
+    page.locator("#config-file").set_input_files(
+        {"name": "connection.json", "mimeType": "application/json", "buffer": json.dumps(spec).encode()}
+    )
+    expect(card.locator('[name="endpoint.context_length"]')).to_have_value("32768")
+    assert json.loads(page.locator("#spec-json").input_value()) == spec
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_model_connection_is_explicit_and_independent_of_experiment(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("fixture")
+    page.locator("#dataset-jsonl").evaluate('el => { el.value = ""; }')
+    page.locator('[name="load.mix"]').evaluate('el => { el.value = "{"; }')
+    button = page.get_by_role("button", name="连接模型", exact=True)
+    button.click()
+    dialog = page.get_by_role("dialog")
+    expect(dialog).to_contain_text("2 次生成")
+    expect(dialog).to_contain_text("16")
+    expect(dialog).to_contain_text("fixture")
+    assert state["calls"] == []
+    dialog.get_by_role("button", name="返回编辑", exact=True).click()
+    assert state["calls"] == []
+    button.click()
+    dialog.get_by_role("button", name="确认连接", exact=True).click()
+    expect(page.locator("#model-connection-status")).to_contain_text("连接成功")
+    expect(page.locator("#model-connection-status")).to_contain_text("fixture")
+    expect(button).to_be_enabled()
+    expect(page.locator("#preflight-details")).to_be_visible()
+    expect(page.locator("#preflight-result")).not_to_be_visible()
+    assert len(state["calls"]) == 1 and state["calls"][0][0] == "/api/preflight"
+    assert state["calls"][0][1] == {
+        "base_url": "http://127.0.0.1:11434/v1",
+        "model": "fixture",
+        "api_key_env": None,
+        "context_length": None,
+        "environment": {},
+    }
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("failure", ["probe", "http", "transport"])
+def test_model_connection_reports_failures_and_recovers_button(browser_page, api_fixture, failure):
+    page = browser_page
+    url, state = api_fixture
+    if failure == "probe":
+        state["probe_ready"] = False
+    elif failure == "http":
+        state["error"] = "test connection rejected"
+    else:
+        page.route("**/api/preflight", lambda route: route.abort())
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("fixture")
+    button = page.get_by_role("button", name="连接模型", exact=True)
+    button.click()
+    page.get_by_role("button", name="确认连接", exact=True).click()
+    expect(page.locator("#model-connection-status")).to_contain_text("连接检测未通过")
+    expect(button).to_be_enabled()
+    expect(page.locator("#model-connection-status")).not_to_contain_text("连接成功")
+    if failure != "probe":
+        expect(page.locator("#model-connection-error")).to_be_visible()
+    assert all(call[0] == "/api/preflight" for call in state["calls"])
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "field,value", [("endpoint.model", ""), ("endpoint.context_length", "0"), ("endpoint.environment", "{")]
+)
+def test_model_connection_invalid_fields_have_local_errors(browser_page, api_fixture, field, value):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("fixture")
+    control = page.locator(f'[name="{field}"]')
+    control.evaluate("(el, value) => { el.value = value; }", value)
+    page.get_by_role("button", name="连接模型", exact=True).click()
+    expect(page.locator("#model-connection-error")).to_be_visible()
+    expect(control).to_be_focused()
+    expect(page.get_by_role("dialog")).not_to_be_visible()
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+def test_model_connection_discards_stale_inflight_result(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    state["probe_release"] = threading.Event()
+    try:
+        page.goto(url)
+        page.locator('nav [data-view="editor"]').click()
+        model = page.get_by_label("模型名称", exact=True)
+        model.fill("old-fixture")
+        page.get_by_role("button", name="连接模型", exact=True).click()
+        page.get_by_role("button", name="确认连接", exact=True).click()
+        assert state["probe_started"].wait(timeout=2)
+        expect(page.locator("#preflight")).to_be_disabled()
+        page.locator("#preflight").evaluate("el => el.click()")
+        model.fill("new-fixture")
+        state["probe_release"].set()
+        expect(page.locator("#preflight")).to_be_enabled()
+        expect(page.locator("#model-connection-status")).not_to_contain_text("连接成功")
+        expect(page.locator("#preflight-result")).to_be_empty()
+        assert len(state["calls"]) == 1 and state["calls"][0][1]["model"] == "old-fixture"
+    finally:
+        state["probe_release"].set()
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("source", ["input", "import"])
+def test_model_connection_result_tracks_endpoint_not_load(browser_page, api_fixture, source):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("fixture")
+    page.get_by_role("button", name="连接模型", exact=True).click()
+    page.get_by_role("button", name="确认连接", exact=True).click()
+    expect(page.locator("#model-connection-status")).to_contain_text("连接成功")
+    page.locator('[data-preset="baseline"]').click()
+    expect(page.locator("#model-connection-status")).to_contain_text("连接成功")
+    if source == "input":
+        page.get_by_label("模型名称", exact=True).fill("changed-model")
+    else:
+        page.locator("#config-file").set_input_files(
+            {"name": "changed.json", "mimeType": "application/json", "buffer": json.dumps(SPEC).encode()}
+        )
+    expect(page.locator("#model-connection-status")).to_be_hidden()
+    expect(page.locator("#preflight-result")).to_be_empty()
+    assert len(state["calls"]) == 1
+
+
+@pytest.mark.e2e
+def test_model_connection_blocks_unapplied_json(browser_page, api_fixture):
+    page = browser_page
+    url, state = api_fixture
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    page.get_by_label("模型名称", exact=True).fill("fixture")
+    page.get_by_role("button", name="展开高级 JSON", exact=True).click()
+    page.locator("#spec-json").fill('{"unfinished":')
+    page.get_by_role("button", name="连接模型", exact=True).click()
+    expect(page.locator("#model-connection-error")).to_contain_text("先应用")
+    expect(page.get_by_role("dialog")).not_to_be_visible()
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
 def test_connection_help_explains_fields_and_preserves_form(browser_page, api_fixture):
     page = browser_page
     url, state = api_fixture
@@ -558,7 +752,7 @@ def test_connection_help_uses_compact_icons_with_large_click_targets(browser_pag
     # Old and new groups share the same compact icon and accessible hit area.
     button = page.get_by_role("button", name="负载模式说明", exact=True)
     expect(button.locator(".help-icon")).to_have_count(1)
-    expect(page.locator(".help-trigger")).to_have_count(14)
+    expect(page.locator(".help-trigger")).to_have_count(38)
     sizes = page.locator(".help-trigger").evaluate_all(
         """buttons => buttons.map(button => {
             const icon = button.querySelector('.help-icon');
@@ -575,6 +769,77 @@ def test_connection_help_uses_compact_icons_with_large_click_targets(browser_pag
     expect(page.get_by_role("tooltip")).to_be_visible()
     page.keyboard.press("Escape")
     expect(button).to_be_focused()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert state["calls"] == []
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("width", [1440, 390])
+def test_quality_safety_tips_preserve_fields_and_checkbox_labels(browser_page, api_fixture, width):
+    page = browser_page
+    url, state = api_fixture
+    page.set_viewport_size({"width": width, "height": 1000})
+    page.goto(url)
+    page.locator('nav [data-view="editor"]').click()
+    expand_editor_options(page)
+    before = page.locator("#spec-json").input_value()
+    explanations = {
+        "goals.mode": "不会自动改变负载模式",
+        "goals.min_requests_per_s": "不是每秒完成 2 份",
+        "goals.max_p95_e2e_ms": "不是请求超时",
+        "goals.max_p95_ttft_ms": "不等于纯 Prefill 时间",
+        "goals.max_p95_tpot_ms": "不是逐 token 间隔 ITL 的 P95",
+        "goals.max_error_rate": "不是答案错误率",
+        "quality.mode": "未标记不会算通过",
+        "goals.min_quality_pass_rate": "不会从分母排除",
+        "quality.min_chars": "不是 token 数",
+        "quality.required_text": "两段都必须出现",
+        "quality.reject_truncated": "人工 pass 不能覆盖",
+        "safety.max_requests": "36 次",
+        "safety.max_concurrency": "客户端会拒绝",
+        "safety.max_duration_s": "不是每个点各有",
+        "safety.request_timeout_s": "不会自动重试",
+        "safety.max_output_tokens": "预留预算",
+        "safety.max_response_bytes": "按所有分片累计",
+        "telemetry.interval_s": "采集完成后",
+        "telemetry.sources": "缺失数据按未知处理",
+        "protocol_fixture": "不会自动切换服务地址",
+    }
+    expect(page.locator("#quality-options .help-trigger")).to_have_count(11)
+    expect(page.locator('[name="quality.require_json"]')).to_have_count(0)
+    expect(page.get_by_role("button", name="要求合法 JSON 输出说明", exact=True)).to_have_count(0)
+    assert json.loads(before)["quality"]["require_json"] is False
+    assert json.loads(before)["quality"]["json_fields"] == []
+    expect(page.locator('[name="quality.json_fields"]')).to_have_count(0)
+    expect(page.get_by_role("button", name="必需 JSON 字段（JSON 数组）说明", exact=True)).to_have_count(0)
+    expect(page.locator("#safety-options .help-trigger")).to_have_count(10)
+    for name, phrase in explanations.items():
+        control = page.locator(f'[name="{name}"]')
+        field = control.locator("xpath=ancestor::*[contains(@class, 'help-field')]")
+        button = field.locator(".help-trigger")
+        checked = control.is_checked() if control.get_attribute("type") == "checkbox" else None
+        button.click()
+        tip = page.get_by_role("tooltip")
+        expect(tip).to_contain_text(phrase)
+        if name == "quality.required_text":
+            expect(tip).to_contain_text("不要求模型回答 JSON")
+        box = tip.bounding_box()
+        assert 0 <= box["x"] and box["x"] + box["width"] <= width
+        assert tip.get_attribute("id") in control.get_attribute("aria-describedby").split()
+        assert button.locator("xpath=ancestor::label").count() == 0
+        if checked is not None:
+            assert control.is_checked() == checked
+            assert control.locator("xpath=parent::*").get_attribute("class") == "help-label-row check"
+        page.keyboard.press("Escape")
+        expect(tip).to_be_hidden()
+        expect(button).to_be_focused()
+        if checked is not None:
+            label = field.locator("label")
+            label.click()
+            assert control.is_checked() != checked
+            label.click()
+            assert control.is_checked() == checked
+    expect(page.locator("#spec-json")).to_have_value(before)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert state["calls"] == []
 
@@ -713,8 +978,11 @@ def test_parameter_tips_cover_load_fields_with_examples_and_preserve_values(brow
         "每点预热请求数": "不计入正式性能指标",
         "重复次数": "每轮",
         "扫描点（逗号分隔）": "1、2、4",
-        "随机种子": "不保证模型",
         "类别混合比例（JSON）": '"classify": 0.3',
+        "每请求最大输出（tokens）": "样本自己设置的 max_tokens 优先",
+        "Temperature": "不保证多次回答完全相同",
+        "Top P": "不是保留 90% 的词",
+        "缓存条件": "不会清空缓存",
     }
     expect(page.locator("#load-options .help-trigger")).to_have_count(len(explanations))
     for title, explanation in explanations.items():
@@ -1116,10 +1384,10 @@ def test_real_manager_browser_preflight_run_labels_and_sanitized_download(browse
     page.get_by_label("模型名称", exact=True).fill("browser-protocol-fixture")
     page.get_by_label("OpenAI 兼容服务地址").fill(endpoint)
     page.get_by_label("每点测量请求数", exact=True).fill("2")
-    page.get_by_label("每请求最大输出（tokens）").fill("8")
-    page.get_by_label("计划总时限（s）").fill("60")
-    page.get_by_label("协议替身实验（不代表模型性能）").check()
-    page.get_by_label("质量模式").select_option("manual")
+    page.get_by_label("每请求最大输出（tokens）", exact=True).fill("8")
+    page.get_by_label("计划总时限（s）", exact=True).fill("60")
+    page.get_by_label("协议替身实验（不代表模型性能）", exact=True).check()
+    page.get_by_label("质量模式", exact=True).select_option("manual")
     page.get_by_role("button", name="生成数据画像", exact=True).click()
     expect(page.locator("#profile-result")).to_contain_text('"sample_count": 1')
     assert observed == []
@@ -1165,9 +1433,9 @@ def test_real_manager_browser_cancel_sweep_and_inspect_plan(browser_page, real_w
     expect(page.get_by_label("实验名称", exact=True)).to_have_value("baseline")
     page.get_by_label("OpenAI 兼容服务地址").fill(endpoint)
     page.get_by_label("每点测量请求数", exact=True).fill("4")
-    page.get_by_label("每请求最大输出（tokens）").fill("8")
+    page.get_by_label("每请求最大输出（tokens）", exact=True).fill("8")
     page.get_by_label("扫描点（逗号分隔）", exact=True).fill("1, 2")
-    page.get_by_label("协议替身实验（不代表模型性能）").check()
+    page.get_by_label("协议替身实验（不代表模型性能）", exact=True).check()
     page.get_by_role("button", name="启动实验计划", exact=True).click()
     page.get_by_role("button", name="扫描曲线", exact=True).click()
     expect(page.locator("#sweep-table tbody tr")).to_have_count(2)

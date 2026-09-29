@@ -15,7 +15,7 @@ Unknown values are JSON null, never NaN. IDs are generated hex identifiers, not 
   "goals": {"mode": "offline", "min_requests_per_s": null, "max_p95_e2e_ms": null, "max_p95_ttft_ms": null, "max_p95_tpot_ms": null, "min_quality_pass_rate": 1.0, "max_error_rate": 0.0, "deadline_s": null, "target_requests": null},
   "quality": {"mode": "rules", "require_json": false, "json_fields": [], "required_text": [], "min_chars": 1, "reject_truncated": true},
   "safety": {"max_requests": 1000, "max_concurrency": 64, "max_duration_s": 300, "request_timeout_s": 30, "max_output_tokens": 128000, "max_response_bytes": 2097152},
-  "telemetry": {"interval_s": 1.0, "sources": []},
+  "telemetry": {"interval_s": 1.0, "sources": [], "local": {"enabled": false}},
   "cache_condition": "unknown",
   "tokenizer_path": null,
   "notes": "",
@@ -26,6 +26,15 @@ Unknown values are JSON null, never NaN. IDs are generated hex identifiers, not 
 Defaults are product defaults, not benchmark recommendations. Safety max_requests/max_output_tokens apply across a full plan (scan × repeats × (count + warmup)). Plans reject impossible bounds before dispatch. max_duration_s is plan-wide, including worker initialization and drain. Preflight is a separate explicit action (at most 2 generation requests × 8 output tokens); no implicit per-run preflight.
 
 Telemetry source: `{name, url, api_key_env:null, mappings:[{key, metric, kind:"gauge"|"counter", scale:1.0, labels:{}, aggregation:"sum"|"max"|"mean"}]}`. Canonical keys: queue_waiting, requests_running, kv_cache_usage_ratio, preemptions_total, prefix_hits_total, prefix_queries_total, device_utilization_ratio, device_memory_used_bytes, device_memory_total_bytes. Preserve per-series labels and raw metric names; don't hide missing sources.
+
+Opt-in `telemetry.local.enabled` defaults to false, including old configs. It accepts only loopback model
+endpoints with root or `/v1` paths. Local frames add `source_kind: local_system|local_ollama`; legacy exporter
+frames without it remain prometheus. Source identity is `(source_kind, source)`, not name alone.
+Local-only keys: `host_memory_total_bytes`, `host_memory_available_bytes`, `host_swap_total_bytes`,
+`host_swap_used_bytes`, `model_memory_bytes` (Ollama size_vram), `model_context_tokens` (configured capacity).
+They are gauges with the same value/unit/status/reason/series schema; they are not aliases for device memory
+or KV occupancy. The runner passes the full frozen spec to `TelemetryCollector` when local observation is enabled.
+No extra model generation, remote connection, sudo or GPU subprocess occurs. Latest missing samples stay missing.
 
 ## Request record
 

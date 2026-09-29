@@ -66,5 +66,27 @@ button[aria-pressed=true]{border-color:var(--teal);background:var(--teal-light);
 #view-editor .submit-bar>div{min-width:0;overflow-wrap:anywhere}
 #submit{flex-shrink:0}
 #view-editor .error{scroll-margin:20px}
+/* Local observations share the notebook palette and stay distinct from exporters. */
+.local-telemetry-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.local-telemetry-heading h3{margin:0}
+#local-telemetry-summary>p,#local-telemetry-count{font-size:12px;overflow-wrap:anywhere}
+#local-telemetry-status{white-space:normal}
+#local-telemetry-status[data-state=partial]{background:#f0e9d8;color:var(--amber)}
+#local-telemetry-status[data-state=failed]{background:#f1e0d8;color:var(--red)}
+#local-telemetry-status[data-state=disabled],#local-telemetry-status[data-state=stopped],#local-telemetry-status[data-state=waiting]{background:#e9ece3;color:var(--muted)}
+.local-source{border-top:1px solid var(--line);padding-top:14px;margin-top:14px;min-width:0}
+.local-source h4{font-size:12px;margin:0 0 6px;font-weight:600}
+.local-source-meta{font:10px/1.7 Ledger,NotebookCN,monospace;color:var(--muted);overflow-wrap:anywhere;margin:0 0 12px}
+.local-source>p.muted{font-size:12px}
+.local-source dl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px 14px;font-size:12px;margin:0}
+.local-source dt{color:var(--muted)}
+.local-source dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.local-value{font-variant-numeric:tabular-nums}
+.local-missing{color:var(--amber)}
+.local-scope{border-left:2px solid var(--accent);padding-left:12px;color:var(--muted);margin-top:18px}
+#local-telemetry-table{min-width:640px}
+#local-telemetry-table td{vertical-align:top}
+#local-telemetry-table td:not(:first-child){white-space:normal;overflow-wrap:anywhere;min-width:130px;max-width:240px}
+#local-telemetry-table small{display:block;font-family:Ledger,NotebookCN,monospace;font-size:10px}
 @media(max-width:1050px){.setup-grid{grid-template-columns:1fr}.setup-card{padding:20px}.config-import{width:190px}}
 @media(max-width:760px){.preset-choices{grid-template-columns:1fr}.setup-grid{gap:16px}.config-import{width:100%}.settings-fold>summary span{display:block;margin:4px 0 0 14px}.settings-group{padding:0 14px}.json-fold #advanced-panel{padding:14px}.service-choices button{flex:1}.preset-choices button{padding:15px 18px}.dataset-ready{margin-bottom:14px}}

@@ -87,6 +87,8 @@ _CHANGE_PATHS = {
     "telemetry",
     "telemetry.interval_s",
     "telemetry.sources",
+    "telemetry.local",
+    "telemetry.local.enabled",
 }
 for _parent, _fields in (
     ("load", _LOAD_FIELDS),
@@ -119,6 +121,12 @@ _TELEMETRY = {
     "device_utilization_ratio": ("ratio", "gauge"),
     "device_memory_used_bytes": ("bytes", "gauge"),
     "device_memory_total_bytes": ("bytes", "gauge"),
+    "host_memory_total_bytes": ("bytes", "gauge"),
+    "host_memory_available_bytes": ("bytes", "gauge"),
+    "host_swap_used_bytes": ("bytes", "gauge"),
+    "host_swap_total_bytes": ("bytes", "gauge"),
+    "model_memory_bytes": ("bytes", "gauge"),
+    "model_context_tokens": ("tokens", "gauge"),
 }
 _ADVICE = {
     "insufficient_evidence": (
@@ -252,14 +260,63 @@ def _profile(raw, spec, aliases):
     return result
 
 
+def _latest_resource(frame):
+    """Current sample, not the last successful sample; only allowlisted values leave the host."""
+    metrics = {}
+    reasons = {
+        "model_not_loaded",
+        "field_unavailable",
+        "invalid_value",
+        "invalid_response",
+        "ambiguous_model",
+        "missing_api_key",
+        "timeout",
+        "network_error",
+        "system_unavailable",
+        "redirect_rejected",
+        "response_too_large",
+        "unsupported_encoding",
+        "metric_not_found",
+        "labels_not_matched",
+        "non_finite_value",
+        "ratio_out_of_range",
+        "negative_counter",
+        "duplicate_series",
+        "counter_reset",
+        "counter_unavailable",
+        "series_changed",
+    }
+    for key, (unit, _) in _TELEMETRY.items():
+        raw_entry = _dict(frame.get("metrics")).get(key)
+        entry = _dict(raw_entry)
+        value = _number(entry.get("value") if isinstance(raw_entry, dict) else raw_entry)
+        if (
+            frame.get("error")
+            or frame.get("status") == "error"
+            or entry.get("status", "available") != "available"
+        ):
+            value = None
+        if value is not None and unit == "ratio" and value > 1:
+            value = None
+        reason = entry.get("reason") or frame.get("error")
+        if not isinstance(reason, str) or (
+            reason not in reasons and not re.fullmatch(r"http_[1-5][0-9]{2}", reason)
+        ):
+            reason = "unavailable"
+        metrics[key] = {"value": value, "unit": unit, "reason": None if value is not None else reason}
+    return {"timestamp": _number(frame.get("timestamp")), "metrics": metrics}
+
+
 def _telemetry_summary(raw):
     frames = _list(raw) if isinstance(raw, list) else _list(_dict(raw).get("samples"))
     groups = {}
     for frame in frames:
         frame = _dict(frame)
-        groups.setdefault(_sha256(frame.get("source")), []).append(frame)
+        kind = _enum(frame.get("source_kind"), {"local_system", "local_ollama"}, "prometheus")
+        identity = _sha256([kind, frame.get("source")])
+        groups.setdefault((kind, identity), []).append(frame)
     sources = []
-    for identity, samples in groups.items():
+    for (source_kind, identity), samples in groups.items():
         metrics = {}
         for key, (unit, kind) in _TELEMETRY.items():
             values = []
@@ -285,18 +342,23 @@ def _telemetry_summary(raw):
         sources.append(
             {
                 "source_sha256": identity,
+                "source_kind": source_kind,
                 "sample_count": len(samples),
                 "error_count": sum(
                     bool(frame.get("error")) or frame.get("status") == "error" for frame in samples
                 ),
                 "metrics": metrics,
+                "latest": _latest_resource(samples[-1]),
             }
         )
     return {
         "sample_count": len(frames),
         "sources": sources,
         "definition": "Per-source observed values over the collection lifetime, including possible warmup. "
-        "Counter summaries are absolute readings, not rates or validated deltas. Missing samples stay explicit.",
+        "Counter summaries are absolute readings, not rates or validated deltas. Missing samples stay explicit. "
+        "Summary last is the last valid historical value; latest is the final sample including missing values. "
+        "Local system memory belongs to the workbench host. Model memory is Ollama size_vram, not device-wide "
+        "memory or KV occupancy; model context is configured capacity, not usage.",
     }
 
 
@@ -495,6 +557,11 @@ def _safe_spec(spec):
             },
         },
         "safety": {key: _number(_dict(spec.get("safety")).get(key)) for key in sorted(_SAFETY_FIELDS)},
+        "telemetry": {
+            "local": {
+                "enabled": _bool(_dict(_dict(spec.get("telemetry")).get("local")).get("enabled", False))
+            }
+        },
     }
 
 
@@ -664,16 +731,60 @@ def _sections(safe):
         [
             (
                 "Telemetry sources",
-                ("Source SHA256", "Sample count", "Error count"),
+                ("Source SHA256", "Source kind", "Sample count", "Error count"),
                 [
-                    (source["source_sha256"], source["sample_count"], source["error_count"])
+                    (
+                        source["source_sha256"],
+                        source["source_kind"],
+                        source["sample_count"],
+                        source["error_count"],
+                    )
                     for source in safe["telemetry"]["sources"]
                 ],
             ),
             (
                 "Telemetry",
-                ("Source SHA256", "Metric", "Unit", "Kind", "Count", "Missing", "Min", "Max", "Mean", "Last"),
+                (
+                    "Source SHA256",
+                    "Metric",
+                    "Unit",
+                    "Kind",
+                    "Count",
+                    "Missing",
+                    "Min",
+                    "Max",
+                    "Mean",
+                    "Last valid (historical)",
+                ),
                 telemetry_rows,
+            ),
+            (
+                "Latest telemetry",
+                (
+                    "Source SHA256",
+                    "Source kind",
+                    "Timestamp (Unix seconds, UTC)",
+                    "Metric",
+                    "Unit",
+                    "Value",
+                    "Reason",
+                ),
+                [
+                    (
+                        source["source_sha256"],
+                        source["source_kind"],
+                        # Do not round epoch seconds through the generic .6g metric formatter.
+                        str(source["latest"]["timestamp"])
+                        if source["latest"]["timestamp"] is not None
+                        else None,
+                        key,
+                        value["unit"],
+                        value["value"],
+                        value["reason"],
+                    )
+                    for source in safe["telemetry"]["sources"]
+                    for key, value in source["latest"]["metrics"].items()
+                ],
             ),
             (
                 "Telemetry interpretation",

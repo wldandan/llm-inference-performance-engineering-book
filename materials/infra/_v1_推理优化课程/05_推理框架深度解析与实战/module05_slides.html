@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模块五：推理框架深度解析与实战</title>
+<style>
+  :root{
+    --bg:#0f1226; --card:#1a1f3a; --ink:#eef1ff; --dim:#aab2d5;
+    --p1:#7c5cff; --p2:#22d3ee; --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
+    --a:var(--p1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:radial-gradient(1200px 700px at 70% 110%,#1a2a1a 0,transparent 60%),var(--bg);
+    color:var(--ink); line-height:1.65; overflow:hidden;
+  }
+  .slide{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    padding:48px 22px 96px; text-align:center;
+    opacity:0; visibility:hidden; transform:translateY(18px);
+    transition:opacity .4s ease, transform .4s ease;
+    pointer-events:none;
+  }
+  .slide.active{opacity:1; visibility:visible; transform:none; pointer-events:auto}
+  .inner{max-width:720px; width:100%}
+  .kicker{color:var(--a);font-weight:800;letter-spacing:3px;font-size:15px;margin-bottom:14px}
+  .emoji{font-size:68px;line-height:1;margin-bottom:18px;display:block}
+  h1{font-size:clamp(30px,7.5vw,48px);line-height:1.2;margin:6px 0 14px;
+     background:linear-gradient(90deg,var(--good),var(--p2));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(22px,5.5vw,34px);line-height:1.3;margin:4px 0 14px}
+  .big{font-size:clamp(20px,5vw,28px);font-weight:800;margin:8px 0;color:var(--ink)}
+  p{color:#dfe4ff;font-size:clamp(16px,4.2vw,20px)}
+  .sub{color:var(--dim)}
+  .eg{background:#12162e;border:1px solid #2b315c;border-left:4px solid var(--a);
+    border-radius:12px;padding:15px 17px;margin-top:14px;text-align:left;
+    font-size:clamp(14px,3.8vw,17px);line-height:1.65;color:#dfe4ff}
+  .eg .lbl{color:var(--a);font-weight:800;font-size:14px;letter-spacing:1px;display:block;margin-bottom:7px}
+  .eg b{color:var(--ink)}
+  .eg .num{color:var(--warn);font-weight:800}
+  .code{background:#080c1e;border:1px solid #2b315c;border-radius:10px;
+    padding:13px 15px;margin-top:12px;text-align:left;
+    font-family:"JetBrains Mono","Fira Code","Consolas",monospace;
+    font-size:clamp(12px,3vw,14px);line-height:1.6;color:#a5f3fc;overflow-x:auto}
+  .code .cm{color:#6b7280}
+  .code .kw{color:#c084fc}
+  .code .str{color:#86efac}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .card{background:#12162e;border:1px solid #2b315c;border-radius:14px;padding:14px 12px;text-align:left}
+  .card .ic{font-size:28px;margin-bottom:6px;display:block}
+  .card b{display:block;font-size:clamp(14px,3.6vw,17px);margin-bottom:4px;color:var(--ink)}
+  .card span{color:var(--dim);font-size:clamp(12px,3.1vw,14px);line-height:1.5}
+  .card.good{border-top:3px solid var(--good)}
+  .card.bad{border-top:3px solid var(--bad)}
+  .card.warn{border-top:3px solid var(--warn)}
+  .card.blue{border-top:3px solid var(--p1)}
+  .card.cyan{border-top:3px solid var(--p2)}
+  .metrics{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+  .metric{background:#12162e;border:1px solid #2b315c;border-radius:12px;
+    padding:12px 14px;flex:1;min-width:120px;text-align:center}
+  .metric .val{font-size:clamp(24px,6vw,36px);font-weight:900;color:var(--a);line-height:1}
+  .metric .label{color:var(--dim);font-size:12px;margin-top:3px}
+  .metric .desc{color:var(--ink);font-size:clamp(12px,3.1vw,14px);margin-top:5px}
+  .timeline{margin-top:14px;text-align:left}
+  .titem{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
+  .tnum{background:var(--a);color:#fff;border-radius:50%;width:26px;height:26px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto}
+  .ttext b{display:block;color:var(--ink);font-size:clamp(14px,3.6vw,17px)}
+  .ttext span{color:var(--dim);font-size:clamp(12px,3.1vw,14px)}
+  .tbl{width:100%;border-collapse:collapse;margin-top:12px;
+    font-size:clamp(11px,2.9vw,14px);overflow:hidden;border-radius:10px}
+  .tbl th,.tbl td{border:1px solid #2b315c;padding:8px 7px;text-align:center}
+  .tbl th{background:#23305c;color:var(--p2);font-weight:800}
+  .tbl td{background:#12162e}
+  .tbl tr td:first-child{color:var(--ink);font-weight:700;text-align:left}
+  .tbl .hi td{color:var(--good);font-weight:800;background:rgba(52,211,153,.08)}
+  .motto{font-size:clamp(20px,5vw,32px);font-weight:900;margin:10px 0;
+    background:linear-gradient(90deg,var(--good),var(--p2));-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  .flow{display:flex;align-items:center;justify-content:center;gap:0;margin-top:16px;flex-wrap:wrap}
+  .fbox{background:#12162e;border:1px solid #2b315c;border-radius:10px;
+    padding:10px 14px;text-align:center;min-width:90px}
+  .fbox b{display:block;font-size:clamp(13px,3.4vw,16px);color:var(--ink)}
+  .fbox span{color:var(--dim);font-size:11px}
+  .farrow{font-size:20px;color:var(--a);padding:0 6px}
+  #bar{position:fixed;top:0;left:0;height:4px;width:0;
+    background:linear-gradient(90deg,var(--good),var(--p2));transition:width .35s ease;z-index:30}
+  .nav{position:fixed;bottom:0;left:0;right:0;height:72px;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;background:linear-gradient(0deg,rgba(15,18,38,.95),transparent)}
+  .nav button{background:#1a1f3a;border:1px solid #2b315c;color:var(--ink);
+    width:48px;height:48px;border-radius:50%;font-size:22px;cursor:pointer;
+    display:grid;place-items:center;transition:.15s}
+  .nav button:hover{border-color:var(--good)}
+  .nav button:disabled{opacity:.3;cursor:default}
+  #cnt{color:var(--dim);font-size:14px;font-weight:700;letter-spacing:1px}
+  .hint{position:fixed;bottom:84px;left:0;right:0;text-align:center;
+    color:#6f78a6;font-size:13px;z-index:20;animation:bob 1.6s ease-in-out infinite;pointer-events:none}
+  .hint.gone{display:none}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+  @keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+  .mod-tag{display:inline-block;background:rgba(52,211,153,.15);border:1px solid var(--good);
+    border-radius:20px;padding:4px 14px;font-size:13px;color:var(--good);font-weight:700;margin-bottom:12px}
+  .lecture-tag{display:inline-block;background:rgba(34,211,238,.15);border:1px solid var(--p2);
+    border-radius:20px;padding:3px 12px;font-size:13px;color:var(--p2);font-weight:700;margin-bottom:10px}
+  .arch-box{background:#12162e;border:2px solid;border-radius:12px;padding:12px;text-align:center;margin:4px}
+  .arch-row{display:flex;gap:6px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+
+<!-- 封面 -->
+<section class="slide active">
+  <div class="inner">
+    <div class="mod-tag">AI Infra 优化实践 · 模块五</div>
+    <span class="emoji">🔬</span>
+    <h1>推理框架深度解析<br>与实战</h1>
+    <p class="sub">vLLM 和 SGLang 内部到底怎么运转？<br>四大框架该怎么选？</p>
+    <p style="margin-top:16px;color:var(--dim);font-size:14px">2讲 · 4学时 · 点击或按 → 翻页</p>
+  </div>
+</section>
+
+<!-- 模块核心问题 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">本模块核心问题</div>
+    <h2>都说 vLLM 好用<br>你知道它为什么快吗？</h2>
+    <div class="eg">
+      <span class="lbl">💡 知其然更要知其所以然</span>
+      会用 vLLM 的人很多——知道 PagedAttention 怎么实现的人不多。<br>
+      会用 SGLang 的人不少——知道 RadixAttention 和 vLLM 有什么本质区别的人更少。<br><br>
+      <b>本模块目标</b>：拆开框架的"黑盒"，理解每个设计决策背后的工程权衡——
+      这样遇到性能问题时，你才能知道调哪里、怎么调。
+    </div>
+  </div>
+</section>
+
+<!-- 讲1封面 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="lecture-tag">讲 1 · vLLM 深度解析</div>
+    <span class="emoji">⚙️</span>
+    <h2>精密机器的<br>各个零件</h2>
+    <p class="sub">LLMEngine 是大脑，Scheduler 是调度员，<br>Worker 是执行者，KV Cache Manager 是内存管家</p>
+  </div>
+</section>
+
+<!-- 讲1 类比 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">💡 直觉类比</div>
+    <h2>vLLM 就像一台精密工业机器</h2>
+    <div class="eg">
+      <span class="lbl">⚙️ 机器的各个零件</span>
+      <b>LLMEngine（控制中心）</b>：接收所有请求，协调各模块工作<br>
+      <b>Scheduler（调度大脑）</b>：决定哪些请求现在跑，哪些等待，哪些换出到CPU<br>
+      <b>Worker（执行手臂）</b>：真正在GPU上运行模型的代码<br>
+      <b>KV Cache Manager（内存管家）</b>：用 PagedAttention 精细管理每一块GPU内存<br><br>
+      每个零件各司其职，<b>任何一个零件出问题，整台机器就卡住了</b>。
+    </div>
+  </div>
+</section>
+
+<!-- 讲1 整体架构 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">讲 1 · vLLM 整体架构</div>
+    <h2>三层架构设计</h2>
+    <div class="flow" style="flex-direction:column; gap:8px">
+      <div class="arch-row">
+        <div class="arch-box" style="border-color:var(--p2);flex:1;max-width:300px">
+          <b style="color:var(--p2)">API Server（OpenAI兼容）</b>
+          <span style="color:var(--dim);font-size:12px;display:block;margin-top:4px">FastAPI + AsyncIO，处理HTTP请求</span>
+        </div>
+      </div>
+      <div style="color:var(--a);font-size:20px">↓</div>
+      <div class="arch-row">
+        <div class="arch-box" style="border-color:var(--good);flex:1;max-width:300px">
+          <b style="color:var(--good)">LLMEngine / AsyncLLMEngine</b>
+          <span style="color:var(--dim);font-size:12px;display:block;margin-top:4px">核心调度层，维护请求队列</span>
+        </div>
+      </div>
+      <div style="color:var(--a);font-size:20px">↓</div>
+      <div class="arch-row" style="gap:8px">
+        <div class="arch-box" style="border-color:var(--warn);flex:1">
+          <b style="color:var(--warn);font-size:13px">Scheduler</b>
+          <span style="color:var(--dim);font-size:11px;display:block;margin-top:3px">调度策略</span>
+        </div>
+        <div class="arch-box" style="border-color:var(--p1);flex:1">
+          <b style="color:var(--p1);font-size:13px">KV Cache Mgr</b>
+          <span style="color:var(--dim);font-size:11px;display:block;margin-top:3px">内存管理</span>
+        </div>
+        <div class="arch-box" style="border-color:var(--bad);flex:1">
+          <b style="color:var(--bad);font-size:13px">Worker × N</b>
+          <span style="color:var(--dim);font-size:11px;display:block;margin-top:3px">GPU执行</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲1 Scheduler三队列 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">讲 1 · Scheduler 核心逻辑</div>
+    <h2>三种队列，动态流转</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">W</div>
+        <div class="ttext"><b>Waiting 队列</b><span> — 刚进来的请求，等待分配KV Cache物理块，FCFS调度</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">R</div>
+        <div class="ttext"><b>Running 队列</b><span> — 正在GPU上执行的请求，Decode阶段逐Token生成</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--bad)">S</div>
+        <div class="ttext"><b>Swapped 队列</b><span> — GPU内存不足时，KV Cache被换出到CPU，等待换回</span></div>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">📌 抢占（Preemption）触发条件</span>
+      GPU内存即将耗尽 → Scheduler将低优先级请求的KV Cache换出（Swap）到CPU内存<br>
+      换出代价：<b>PCIe带宽 ≈ 32 GB/s，换出32GB约需1秒</b> → 尽量避免
+    </div>
+  </div>
+</section>
+
+<!-- 讲1 PagedAttention + KV Cache Manager -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">讲 1 · PagedAttention 实现细节</div>
+    <h2>Block Table：虚拟到物理的映射</h2>
+    <div class="eg">
+      <span class="lbl">📐 核心数据结构</span>
+      每个请求维护一个 <b>Block Table</b>（逻辑块号 → 物理块号的映射表）<br>
+      物理块固定大小（默认16个Token的KV Cache）<br>
+      Beam Search时多个候选共享相同前缀的物理块（<b>Copy-on-Write</b>）
+    </div>
+    <div class="cards" style="margin-top:12px">
+      <div class="card good">
+        <span class="ic">✅</span>
+        <b>解决的问题</b>
+        <span>内存碎片：从60%浪费降到&lt;4%<br>按需分配，不预留最大长度</span>
+      </div>
+      <div class="card warn">
+        <span class="ic">⚠️</span>
+        <b>代价</b>
+        <span>Block Table查表有额外开销<br>小Batch时收益有限</span>
+      </div>
+    </div>
+    <div class="metrics" style="margin-top:10px">
+      <div class="metric"><div class="val" style="color:var(--good)">2-4x</div><div class="desc">相比静态分配吞吐提升</div></div>
+      <div class="metric"><div class="val" style="color:var(--good)">&lt;4%</div><div class="desc">内存碎片率</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲1 CUDA Graph + 性能调优 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">讲 1 · 性能调优关键参数</div>
+    <h2>四个最影响性能的参数</h2>
+    <div class="code">
+<span class="cm"># 关键参数速查</span>
+vllm serve meta-llama/Llama-3-8B \
+  <span class="str">--gpu-memory-utilization</span> 0.92  <span class="cm"># GPU内存使用率上限（默认0.9）</span>
+  <span class="str">--max-num-seqs</span> 256           <span class="cm"># 最大并发序列数</span>
+  <span class="str">--max-num-batched-tokens</span> 8192 <span class="cm"># 单次Forward最多token数</span>
+  <span class="str">--enable-chunked-prefill</span>       <span class="cm"># 开启Chunked Prefill</span>
+  <span class="cm"># --enforce-eager              # 禁用CUDA Graph（调试用）</span>
+    </div>
+    <div class="eg" style="margin-top:10px">
+      <span class="lbl">💡 CUDA Graph 的作用</span>
+      把固定形状的计算图预先录制成 CUDA Graph，消除每次 Python 开销 → Decode 阶段加速 <b>10-20%</b><br>
+      代价：首次"预热"需要额外时间，且形状固定（Batch Size/SeqLen变化会重新录制）
+    </div>
+  </div>
+</section>
+
+<!-- 讲2封面 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="lecture-tag">讲 2 · SGLang 深度解析</div>
+    <span class="emoji">🧠</span>
+    <h2>vLLM 的<br>更聪明版本</h2>
+    <p class="sub">RadixAttention 记住所有用过的前缀，<br>FlashInfer 让每个动作更高效，<br>Overlap Scheduler 消除 CPU 等待</p>
+  </div>
+</section>
+
+<!-- 讲2 类比 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">💡 直觉类比</div>
+    <h2>为什么 SGLang 在某些场景更快？</h2>
+    <div class="eg">
+      <span class="lbl">🧠 三个核心升级</span>
+      <b>1. RadixAttention（超级记忆）</b>：把所有历史请求的前缀组织成前缀树，
+      新请求来了自动找最长匹配——相当于大脑里装了一个完美索引。<br><br>
+      <b>2. FlashInfer（更快的肌肉）</b>：用专门为LLM推理设计的GPU Kernel，
+      比通用实现快10-20%，尤其在多序列混合场景。<br><br>
+      <b>3. Overlap Scheduler（双手并用）</b>：CPU调度下一批的同时，GPU执行当前批——
+      完全消除CPU等待时间。
+    </div>
+  </div>
+</section>
+
+<!-- 讲2 RadixAttention -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · RadixAttention 核心原理</div>
+    <h2>前缀树自动管理所有 KV Cache</h2>
+    <div class="eg">
+      <span class="lbl">🌳 Radix Tree 工作方式</span>
+      所有历史请求的 Token 序列 → 组织成一棵 Radix Tree<br>
+      新请求到来 → 从根节点开始匹配，找到最长公共前缀<br>
+      → 直接复用对应的 KV Cache，跳过 Prefill 计算<br><br>
+      <b>例</b>：100个请求都有相同的 2000 token System Prompt<br>
+      vLLM Prefix Cache：哈希匹配，需预先建索引<br>
+      SGLang RadixAttention：<b>自动，无感知，命中率更高</b>
+    </div>
+    <div class="metrics" style="margin-top:12px">
+      <div class="metric"><div class="val" style="color:var(--good)">90%+</div><div class="desc">System Prompt场景Cache命中率</div></div>
+      <div class="metric"><div class="val" style="color:var(--good)">3-5x</div><div class="desc">相应吞吐量提升</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲2 四框架选型矩阵 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · 四大框架选型矩阵</div>
+    <h2>没有最好的框架，只有最合适的</h2>
+    <table class="tbl">
+      <tr><th>框架</th><th>性能</th><th>易用性</th><th>生态</th><th>最佳场景</th></tr>
+      <tr><td>vLLM</td><td>★★★★</td><td>★★★★★</td><td>★★★★★</td><td>通用首选</td></tr>
+      <tr class="hi"><td>SGLang</td><td>★★★★★</td><td>★★★★</td><td>★★★★</td><td>Prefix Cache多/结构化输出</td></tr>
+      <tr><td>TensorRT-LLM</td><td>★★★★★</td><td>★★</td><td>★★★</td><td>NVIDIA H100极致优化</td></tr>
+      <tr><td>LMDeploy</td><td>★★★</td><td>★★★★★</td><td>★★★</td><td>快速验证/中小规模</td></tr>
+    </table>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">📌 选型口诀</span>
+      不知道选什么 → <b>先用 vLLM</b>（社区最活跃，问题最好解决）<br>
+      Prefix Cache 命中率是关键 → <b>换 SGLang</b><br>
+      NVIDIA 硬件极致性能 → <b>上 TensorRT-LLM</b>（接受复杂部署代价）<br>
+      快速验证原型 → <b>试试 LMDeploy</b>
+    </div>
+  </div>
+</section>
+
+<!-- 讲2 Structured Output + FlashInfer -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · SGLang 两大差异化特性</div>
+    <h2>结构化输出加速 + FlashInfer</h2>
+    <div class="cards">
+      <div class="card cyan">
+        <span class="ic">📋</span>
+        <b>Structured Output 加速</b>
+        <span>在采样阶段直接 mask 非法 Token<br>（而不是采样后再验证）<br>JSON/正则约束下速度提升 <b style="color:var(--good)">5-10x</b></span>
+      </div>
+      <div class="card cyan">
+        <span class="ic">⚡</span>
+        <b>FlashInfer 集成</b>
+        <span>统一的 GPU Attention Kernel 库<br>支持 Ragged Batch（不等长序列）<br>Decode 阶段比 vLLM 快 <b style="color:var(--good)">10-20%</b></span>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">🔧 Overlap Scheduler 原理</span>
+      传统：GPU 跑完一批 → CPU 调度下一批 → GPU 再跑（串行）<br>
+      SGLang Overlap：CPU 调度 Batch N+1 与 GPU 执行 Batch N <b>完全并行</b><br>
+      → CPU 调度开销从关键路径上消除 → 整体吞吐提升 <b>5-15%</b>
+    </div>
+  </div>
+</section>
+
+<!-- 讲2 vLLM vs SGLang 深度对比 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · vLLM vs SGLang 深度对比</div>
+    <h2>两个框架的本质差异</h2>
+    <table class="tbl">
+      <tr><th>特性</th><th>vLLM</th><th>SGLang</th></tr>
+      <tr><td>Prefix Cache</td><td>哈希匹配（需预建索引）</td><td>RadixAttention（自动前缀树）</td></tr>
+      <tr class="hi"><td>Prefix命中率</td><td>良好</td><td>更高（结构化管理）</td></tr>
+      <tr><td>Attention Kernel</td><td>自研 + FlashAttn</td><td>FlashInfer（更快）</td></tr>
+      <tr><td>CPU调度开销</td><td>串行（GPU等CPU）</td><td>Overlap（并行消除）</td></tr>
+      <tr><td>结构化输出</td><td>后处理验证</td><td>采样阶段mask（快5-10x）</td></tr>
+      <tr><td>社区生态</td><td>最活跃（GitHub 40k+ stars）</td><td>快速增长</td></tr>
+      <tr class="hi"><td>推荐场景</td><td>通用首选</td><td>Prefix Cache密集场景</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 讲2 生产部署实践 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · 生产部署关键实践</div>
+    <h2>从实验到生产的必经之路</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--p2)">1</div>
+        <div class="ttext"><b>容器化部署</b><span> — Docker/K8s，镜像固定版本，避免依赖地狱（vllm:latest-cuda12.4）</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">2</div>
+        <div class="ttext"><b>健康检查</b><span> — /health 和 /metrics 端点，GPU利用率/队列深度/P99延迟实时监控</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">3</div>
+        <div class="ttext"><b>预热策略</b><span> — 启动后发送若干预热请求，CUDA Graph 提前录制，避免首批请求延迟尖刺</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--bad)">4</div>
+        <div class="ttext"><b>滚动升级</b><span> — 蓝绿部署或金丝雀发布，新版本上线前跑 Benchmark 对比，确认无回归</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 模块总结 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">模块五 · 总结</div>
+    <h2>框架全景选型指南</h2>
+    <table class="tbl">
+      <tr><th>场景</th><th>推荐框架</th><th>关键配置</th></tr>
+      <tr><td>研究/快速验证</td><td>LMDeploy / vLLM</td><td>默认配置即可</td></tr>
+      <tr class="hi"><td>中等规模生产</td><td>vLLM</td><td>开启 CUDA Graph + Chunked Prefill</td></tr>
+      <tr class="hi"><td>Prefix Cache密集</td><td>SGLang</td><td>RadixAttention + FlashInfer</td></tr>
+      <tr><td>结构化输出服务</td><td>SGLang</td><td>Constrained Decoding + Overlap</td></tr>
+      <tr><td>NVIDIA H100极致</td><td>TensorRT-LLM</td><td>FP8量化 + FMHA融合</td></tr>
+    </table>
+    <div class="motto" style="margin-top:14px">理解原理，才能调出最佳性能</div>
+    <div class="eg" style="margin-top:10px">
+      <span class="lbl">🎯 最重要的两个结论</span>
+      <b>vLLM</b>：PagedAttention + Continuous Batching 是核心，调优从 gpu-memory-utilization 和 max-num-seqs 入手<br>
+      <b>SGLang</b>：RadixAttention 在 Prefix Cache 场景有结构性优势，Overlap Scheduler 消除 CPU 瓶颈
+    </div>
+  </div>
+</section>
+
+<div class="hint" id="hint">← → 方向键翻页 · 或点击导航按钮</div>
+
+<nav class="nav">
+  <button id="prev" onclick="go(-1)" disabled>&#8592;</button>
+  <span id="cnt">1 / 16</span>
+  <button id="next" onclick="go(1)">&#8594;</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const bar = document.getElementById('bar');
+  const cnt = document.getElementById('cnt');
+  const hint = document.getElementById('hint');
+  let cur = 0;
+
+  function show(n) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(slides.length - 1, n));
+    slides[cur].classList.add('active');
+    bar.style.width = ((cur + 1) / slides.length * 100) + '%';
+    cnt.textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === slides.length - 1;
+    if (cur > 0) hint.classList.add('gone');
+  }
+
+  function go(d) { show(cur + d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+  });
+
+  let ts = 0;
+  document.addEventListener('touchstart', e => { ts = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const d = ts - e.changedTouches[0].clientX;
+    if (Math.abs(d) > 40) go(d > 0 ? 1 : -1);
+  });
+
+  show(0);
+</script>
+</body>
+</html>

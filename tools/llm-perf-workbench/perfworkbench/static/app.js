@@ -12,7 +12,7 @@
     pass: "通过", fail: "未通过", unknown: "未知", effective: "有效", ineffective: "无效",
     insufficient_evidence: "证据不足", missing: "缺失", ok: "正常",
   };
-  const jsonFields = new Set(["endpoint.environment", "load.mix", "quality.required_text", "quality.json_fields", "telemetry.sources"]);
+  const jsonFields = new Set(["endpoint.environment", "load.mix", "quality.required_text", "telemetry.sources"]);
   const nullableFields = new Set(["endpoint.api_key_env", "endpoint.context_length", "tokenizer_path",
     "goals.min_requests_per_s", "goals.max_p95_e2e_ms", "goals.max_p95_ttft_ms", "goals.max_p95_tpot_ms"]);
   const state = {spec: null, runs: [], current: null, view: "overview", jsonDirty: false, polling: false, endpoint: null, sweepPlan: null,
@@ -87,14 +87,117 @@
       "一次比较多个负载档位，用逗号分隔。固定并发模式扫描并发数，目标到达速率模式扫描 req/s；各点独立测量。填写后以扫描值代替对应的单一数值。",
       "例如：填 1, 2, 4，在固定并发模式下依次测并发 1、2、4；每点测量数和重复次数对每个档位都生效。留空则只测当前并发数或到达速率。",
     ],
-    "load.seed": [
-      "用于数据抽样、打乱顺序等实验随机过程。同一数据集与配置使用相同种子，有助于复现实验请求序列；通常保留 42 即可。",
-      "它不是模型生成参数，不保证模型每次输出完全相同，也不保证耗时相同。",
-    ],
     "load.mix": [
       "控制不同类别在请求数量中的比例。类别名必须对应数据集的 category 字段，数值是正的相对权重，不是 token 比例，也不是把多个任务合并为一次模型请求。",
       '例如：{"classify": 0.3, "summary": 0.7}，测量 100 次时分配 30 次分类、70 次总结；填 3 和 7 也表示同样比例，小样本会取整。类别内样本不足时会重复取样。',
       "保留 {}：不指定类别权重，按原数据顺序取样，不足时循环，再打乱顺序；并非各类别平均分配。这里也不会建立“先分类、再总结”的工作流依赖。",
+    ],
+    "generation.max_tokens": [
+      "限制单次请求最多生成多少个 token，不包含输入，也不是要求模型必须生成这么多。token 是模型处理文本的单位，不等于汉字或单词数。",
+      "例如：填 256，回答可以提前结束；达到上限时可能被截断。样本自己设置的 max_tokens 优先于这里的默认值。",
+      "调大上限会增加计划的输出预算预留，但不代表实际一定消耗这么多。比较性能时应保持上限一致，并检查实际输出长度和结束原因。",
+    ],
+    "generation.temperature": [
+      "控制生成答案时的采样随机性：较低时更偏向高概率的下一个 token，较高时选择更分散、回答更多样；它不是速度或准确率开关。",
+      "当前默认 0，通常表示每一步选概率最高的 token，但不保证多次回答完全相同。具体支持范围和行为以模型服务为准。",
+      "性能对比时保持该值一致；修改它可能改变答案内容、长度和质量，进而影响测量结果。",
+    ],
+    "generation.top_p": [
+      "控制采样时的候选范围：将下一 token 的候选按概率从高到低排列，保留累计概率达到设定阈值的候选，再从中采样。",
+      "例如：0.9 表示累计概率达到 90%，不是保留 90% 的词，也不是答案有 90% 的正确率。默认 1 表示不按此阈值缩小范围。",
+      "数值越小，候选范围通常越窄。Temperature 为 0、使用贪心生成时，部分服务会忽略 Top P；性能对比时保持采样参数一致。",
+    ],
+    "cache_condition": [
+      "记录本次实验的缓存前提，便于比较结果。这只是声明，不是 KV Cache 开关，也不是自动测得的缓存命中率。",
+      "未知：未确认缓存状态。声明为冷缓存：已在服务侧准备无可复用缓存的条件。声明为热缓存：已准备预热或可复用前缀的条件。",
+      "选择此项不会清空缓存、执行预热或保证命中。需要自行准备并验证，拿不准就保留“未知”；仅发送过预热请求不能证明后续请求会命中缓存。",
+    ],
+    "goals.mode": [
+      "标记本次实验的业务目标：离线吞吐侧重单位时间完成多少任务；在线响应侧重用户等待多久、生成是否及时。",
+      "这里只记录目标类型，不会自动改变负载模式、并发或其他阈值。下面填写的是验收目标，不是让模型自动达到这些性能的配置。",
+    ],
+    "goals.min_requests_per_s": [
+      "希望正式测量达到的最低成功请求吞吐，单位 req/s。计算方式是成功请求数除以完整测量窗口，不包含预热。",
+      "例如：填 2，表示希望平均每秒至少成功完成 2 次模型请求；不是每秒发送 2 次，也不是每秒完成 2 份多步骤报告。留空则不设此目标，不会自动调整发压速率。",
+    ],
+    "goals.max_p95_e2e_ms": [
+      "成功测量请求的端到端耗时 P95 上限。E2E 从客户端发出请求算到完整响应结束，包含网络、排队和生成等耗时；单位毫秒。",
+      "例如：填 2000，要求约 95% 的成功请求在 2 秒内完成。留空则不设此目标；它不是请求超时，超时限制在安全预算中设置。该阈值也用于逐请求的有效吞吐筛选。",
+    ],
+    "goals.max_p95_ttft_ms": [
+      "成功测量请求的首个可观测输出片段耗时 P95 上限，单位毫秒。例如：填 500，要求约 95% 的成功请求在 0.5 秒内开始返回内容。",
+      "本工具从流式响应观测 TTFT，首片段可能是思考内容，不等于纯 Prefill 时间。非流式或观测缺失时标为未知；留空不设此目标。该阈值也用于逐请求的有效吞吐筛选。",
+    ],
+    "goals.max_p95_tpot_ms": [
+      "先为每个成功请求计算平均输出 token 耗时，再看这些数值的 P95。这里估算 TPOT = (E2E − TTFT) / (输出 token 数 − 1)，单位 ms/token，不是逐 token 间隔 ITL 的 P95。",
+      "例如：填 50，要求约 95% 的成功请求平均每个后续 token 不超过 50ms。非流式、缺少 usage 或输出不足 2 个 token 时无法估算；留空不设此目标。该阈值也用于逐请求的有效吞吐筛选。",
+    ],
+    "goals.max_error_rate": [
+      "允许的最高请求错误比例：正式测量中失败请求数除以实际已发送请求数。0 表示不允许失败，0.01 表示最多 1%，不是填 1 表示 1%。",
+      "这里不是答案错误率；答案是否合格由质量评价判断。客户端未发出的拒绝请求单独记录，不算服务失败。此项用于结果验收，不会一超标就自动停止实验。",
+    ],
+    "quality.mode": [
+      "选择如何判断回答合格：业务规则检查长度、指定文本及 JSON；人工标签使用你对每次请求标记的 pass / fail；不评估则将质量标为未知。",
+      "默认人工标签，未标记不会算通过。业务规则只检查形式和指定内容，不能证明事实正确；请求失败、被过滤及启用的截断检查仍可判为失败。",
+    ],
+    "goals.min_quality_pass_rate": [
+      "正式测量中，质量通过的请求数除以实际已发送请求数，需要达到的最低比例。1 表示 100%，0.95 表示 95%。",
+      "未知或未人工评价的请求不会算通过，也不会从分母排除。这个值用于验收，不会自动评价答案或改变模型输出；没有有效测量请求时结果为未知。",
+    ],
+    "quality.min_chars": [
+      "仅在业务规则模式下，要求回答文本至少包含多少个字符。这里按字符计数，不是 token 数；空格、标点也计入。",
+      "例如：填 100，少于 100 个字符的回答不通过。它只检查返回内容，不会要求模型必须生成这么长，也不能说明答案正确。填 0 表示不设最低长度。",
+    ],
+    "quality.required_text": [
+      '仅在业务规则模式下，要求回答包含数组中的每段文本。例如：["摘要", "关键词"] 表示两段都必须出现，不是任选一段。',
+      "这里的 JSON 数组只是填写检查规则的格式，不要求模型回答 JSON；普通文本回答也可以检查。",
+      "使用精确的文本包含检查，区分大小写，不做语义相似度判断。保留 [] 表示不检查；这些文本不会自动加入发给模型的提示词。",
+    ],
+    "quality.reject_truncated": [
+      "勾选后，结束原因 finish_reason 为 length 的回答会判为质量不通过，常见原因是生成达到 token 上限，答案可能没有说完。",
+      "此检查也适用于人工标签和不评估模式，人工 pass 不能覆盖它。取消勾选只是关闭这项判定，不会修复截断或自动让回答通过其他检查。",
+    ],
+    "safety.max_requests": [
+      "整份实验计划允许的请求数量预算，包含所有扫描点、重复轮次、预热和正式测量。提交前会检查计划是否超出预算。",
+      "例如：3 个扫描点，每点测量 10 次、预热 2 次、重复 1 轮，需要至少 3 × (10 + 2) = 36 次。它是上限，不是额外再发送这么多次；主动服务预检的请求单独计量。",
+    ],
+    "safety.max_concurrency": [
+      "客户端允许同时在途的请求数上限，是安全限制，不是模型服务的 Batch Size 或全局并发限制。",
+      "固定并发及扫描点不能超过它；目标到达速率模式下，如果新请求到来时在途数已满，客户端会拒绝该请求并记录，不会无限排队。调高该值不会自动增加固定并发。",
+    ],
+    "safety.max_duration_s": [
+      "整份实验计划共用的最长运行时间，单位秒，包含预热、所有扫描点和重复轮次，不是每个点各有这么长时间。",
+      "例如：900 表示 15 分钟。到期会停止本地压测执行并将未完成部分记录为超时；已发出的请求是否立即在模型服务端停止，取决于服务端处理。",
+    ],
+    "safety.request_timeout_s": [
+      "客户端等待单次请求完成的最长时间，单位秒，覆盖请求发送到完整响应结束，而不只是等待首个 token。",
+      "例如：180 表示单次请求最多等待 3 分钟，超过就中止等待并记录失败，不会自动重试。长输入或长输出任务需留足时间；整份计划仍受计划总时限约束。",
+    ],
+    "safety.max_output_tokens": [
+      "整份计划的输出 token 预留预算，包含预热、扫描和重复，不包含输入 token，也不是每条请求的输出上限。",
+      "提交前保守计算：计划总请求数 × 样本中最大的有效单请求输出上限。例如：5 次请求，每次上限 256，需要预留 1280 tokens；样本自己的 max_tokens 优先。实际生成较短不会让已超出预留预算的计划自动获准。",
+    ],
+    "safety.max_response_bytes": [
+      "客户端接收单条响应体的最大字节数；流式响应按所有分片累计，不是每个分片各有这么大额度。用于防止异常大响应占用过多内存。",
+      "例如：2097152 bytes = 2 MiB。响应体还包含 JSON / SSE 等协议内容，所以这不是字符数或 token 数。超出后会中止接收并记录失败，不会自动截取成合格答案。",
+    ],
+    "telemetry.interval_s": [
+      "每轮资源指标采集完成后，等待多少秒再开始下一轮。只有启用本地采集或配置了观测源、并主动启动实验时才会采集；不是模型请求的发送间隔。",
+      "默认 1 秒。采集本身也需要时间，因此实际两轮间隔可能更长；间隔越短观测越密，但采集开销也会增加。它不是 token 间隔，不能用来测 ITL。",
+    ],
+    "telemetry.local.enabled": [
+      "采集的是运行工作台的后端主机，不一定是浏览器所在电脑。勾选即确认模型实际运行在同一主机；SSH 隧道、端口转发或远程服务不适用，即使地址显示 localhost。系统内存采集支持 macOS / Linux。",
+      "默认关闭。启用后仅在主动启动的实验期间，读取系统内存并向同源 Ollama /api/ps 发出 GET 状态请求，不额外生成；实验结束或停止后停止采集。模型地址须为本机回环地址，路径为根路径或 /v1。",
+      "不采集设备 GPU 或 KV 使用量。模型内存来自 size_vram，只是模型 GPU 侧报告，不等于设备或 KV 内存；配置上下文是容量配置，非使用量。已有 Prometheus / exporter 观测可继续使用。",
+    ],
+    "telemetry.sources": [
+      "配置提供 Prometheus 文本指标的观测端点，例如模型服务或 GPU / NPU exporter 的 /metrics 地址；不是 Chat Completions 地址。保留 [] 表示未配置 exporter，不影响单独启用的本地采集。缺失数据按未知处理，不当作 0。",
+      "每个来源填写 name、url、api_key_env 和 mappings。mappings 用实际指标名、单位换算、标签过滤及聚合方式映射到队列、KV Cache、设备利用率等指标；空映射尝试内置 vLLM 指标，硬件指标需按实际 exporter 配置。",
+      "api_key_env 只填环境变量名，不填密钥。工作台不会替你安装 exporter，也不会因为填写 JSON 就立即访问端点；仅在实验运行期间采集。",
+    ],
+    "protocol_fixture": [
+      "仅当实验连接的是测试协议用的替身服务时勾选。此类服务通常返回固定文本和 usage，用于检查工具流程，不执行真实模型推理。",
+      "这是实验用途标记，不会自动切换服务地址或启动替身。勾选后结果不能作为真实模型性能、容量或优化有效的证据；连接真实模型时不要勾选。",
     ],
   };
   let activeHelp = null;
@@ -144,8 +247,15 @@
       label.className = "";
       label.htmlFor = control.id;
       label.replaceChildren(document.createTextNode(title));
-      row.append(label, button, tip);
-      field.append(row, ...children);
+      if (control.type === "checkbox") {
+        field.classList.remove("check");
+        row.classList.add("check");
+        row.append(control, label, button, tip);
+        field.append(row, ...children.filter((child) => child !== control));
+      } else {
+        row.append(label, button, tip);
+        field.append(row, ...children);
+      }
       const entry = {button, tip, field, pinned: false};
       button.addEventListener("pointerenter", (event) => {
         if (event.pointerType !== "touch") showParameterHelp(entry);
@@ -267,7 +377,7 @@
   }
   function baseSpec() {
     return {name: "", endpoint: {}, dataset: [], load: {}, generation: {extra: {}}, goals: {deadline_s: null, target_requests: null},
-      quality: {}, safety: {}, telemetry: {}, cache_condition: "unknown", tokenizer_path: null, notes: "", protocol_fixture: false};
+      quality: {require_json: false, json_fields: []}, safety: {}, telemetry: {local: {enabled: false}}, cache_condition: "unknown", tokenizer_path: null, notes: "", protocol_fixture: false};
   }
   function requireAppliedJSON() {
     if (state.jsonDirty) throw new Error("高级 JSON 尚未应用。请先点击“应用 JSON”，以保留本次编辑。");
@@ -284,6 +394,8 @@
   function readForm(allowEmpty = false, replacementDataset = null) {
     requireAppliedJSON();
     const spec = structuredClone(state.spec || baseSpec());
+    // JSON-only setting: preserve explicit seeds, including 0, and default only when absent.
+    if (spec.load.seed === undefined) spec.load.seed = 42;
     for (const input of form.querySelectorAll("[name]")) {
       try {
       const key = input.name;
@@ -300,6 +412,8 @@
         value = Number(input.value);
         if (!input.value.trim() || !Number.isFinite(value)) throw new Error(`${key} 需要有效数字。`);
       } else value = input.value.trim();
+      // Preserve the shape of older imported configurations; absence already means disabled.
+      if (key === "telemetry.local.enabled" && !value && get(spec, key) === undefined) continue;
       set(spec, key, value);
       } catch (error) {
         error.field = input;
@@ -323,7 +437,7 @@
     const values = [...form.querySelectorAll("[name]")].map((input) => {
       const value = get(spec, input.name);
       if (input.type === "checkbox") return [input, value === true];
-      if (jsonFields.has(input.name)) return [input, pretty(value ?? (input.name.includes("sources") || input.name.includes("json_fields") || input.name.includes("required_text") ? [] : {}))];
+      if (jsonFields.has(input.name)) return [input, pretty(value ?? (input.name.includes("sources") || input.name.includes("required_text") ? [] : {}))];
       if (input.name === "load.scan") return [input, (value || []).join(", ")];
       return [input, value ?? ""];
     });
@@ -368,7 +482,7 @@
     $("#plan-estimate").textContent = `${number(points)} 个实验点 · 最多 ${number(requests)} 次请求 · ${number(tokens)} 输出 tokens 预留`;
     const parallel = load.mode === "rate" ? `目标到达 ${load.scan?.length ? load.scan.join(" / ") : number(load.rate)} req/s · 在途上限 ${number(spec.safety.max_concurrency)}` : `并发 ${load.scan?.length ? load.scan.join(" / ") : load.concurrency}`;
     const quality = spec.quality.mode === "manual" ? "质量待人工评价" : spec.quality.mode === "none" ? "质量未知（未评估）" : "质量按业务规则判断";
-    $("#run-settings-summary").textContent = `${parallel} · ${spec.generation.stream ? "流式（采集 TTFT / TPOT）" : "非流式（TTFT / TPOT 未知）"} · ${quality} · ${spec.telemetry.sources?.length ? "已配置资源观测" : "未配置 GPU / KV 观测"}${spec.protocol_fixture ? " · 协议替身，不代表模型性能" : ""}`;
+    $("#run-settings-summary").textContent = `${parallel} · ${spec.generation.stream ? "流式（采集 TTFT / TPOT）" : "非流式（TTFT / TPOT 未知）"} · ${quality} · 本地采集：${spec.telemetry.local?.enabled === true ? "开启" : "关闭"} · ${spec.telemetry.sources?.length ? "已配置资源观测（exporter）" : "未配置 GPU / KV 观测"}${spec.protocol_fixture ? " · 协议替身，不代表模型性能" : ""}`;
     const exceeds = requests > spec.safety.max_requests || tokens > spec.safety.max_output_tokens ||
       Math.max(load.concurrency, ...(load.mode === "concurrency" ? load.scan || [] : [])) > spec.safety.max_concurrency;
     $("#budget-status").textContent = `安全上限：${number(spec.safety.max_requests)} 次 / ${number(spec.safety.max_output_tokens)} 输出 tokens / ${number(spec.safety.max_duration_s)} 秒。${exceeds ? "当前计划超出预算：请显式选择预设，或在高级设置中调整预算。" : ""}`;
@@ -563,6 +677,122 @@
     node.append(element("span", label, "metric-label"), element("strong", number(value)), element("small", unit), element("small", explanation));
     return node;
   }
+  const localSources = {
+    local_system: {title: "系统内存", metrics: {
+      host_memory_total_bytes: "主机总内存", host_memory_available_bytes: "主机可用内存",
+      host_swap_used_bytes: "Swap 已用", host_swap_total_bytes: "Swap 总量",
+    }},
+    local_ollama: {title: "Ollama 模型", metrics: {
+      model_memory_bytes: "模型内存（GPU 侧报告）", model_context_tokens: "配置上下文（非使用量）",
+    }},
+  };
+  const localReasons = {
+    model_not_loaded: "模型未加载", field_unavailable: "字段未提供", invalid_value: "数值无效",
+    invalid_response: "响应无效", ambiguous_model: "模型匹配不唯一", http_401: "认证失败",
+    http_404: "状态接口不存在", http_500: "服务端错误", missing_api_key: "密钥环境变量缺失",
+    timeout: "采样超时", network_error: "网络错误", system_unavailable: "系统采样不可用",
+    redirect_rejected: "已拒绝重定向", response_too_large: "响应超出大小限制", unsupported_encoding: "响应编码不支持",
+  };
+  function localValue(frame, key) {
+    const sample = frame?.metrics?.[key];
+    let reason = frame?.status === "error" ? frame.error || sample?.reason || "invalid_response" : sample?.reason;
+    if (!reason && sample?.status === "available") {
+      const value = sample.value;
+      if (typeof value !== "number" || !Number.isFinite(value) || value < 0 ||
+          (sample.unit === "tokens" && !Number.isInteger(value))) reason = "invalid_value";
+      else if (sample.unit === "tokens") return {available: true, text: `${value.toLocaleString("zh-CN", {maximumFractionDigits: 0})} tokens`};
+      else if (sample.unit === "bytes") {
+        const gib = value >= 1024 ** 3;
+        const scaled = value / (gib ? 1024 ** 3 : 1024 ** 2);
+        return {available: true, text: `${scaled > 0 && scaled < 0.001 ? "< 0.001" : number(scaled)} ${gib ? "GiB" : "MiB"}`};
+      }
+    }
+    reason ||= "field_unavailable";
+    const explanation = Object.hasOwn(localReasons, reason) ? ` · ${localReasons[reason]}` : "";
+    return {available: false, text: `null · ${reason}${explanation}`};
+  }
+  function sampleTime(timestamp) {
+    const date = new Date(typeof timestamp === "number" ? timestamp * 1000 : NaN);
+    if (!Number.isFinite(date.getTime())) return element("span", "采样时间未知", "muted");
+    const time = element("time", date.toISOString());
+    time.dateTime = date.toISOString();
+    time.title = "采样时间（UTC）";
+    return time;
+  }
+  function localAvailability(available, total) {
+    return available === total ? "可用" : available > 0 ? "部分缺失" : "失败";
+  }
+  function renderTelemetry(run) {
+    const telemetry = run.telemetry || [];
+    const rows = Array.isArray(telemetry) ? telemetry : [];
+    const isLocal = (frame) => Object.hasOwn(localSources, frame?.source_kind);
+    // Match report semantics: the last appended whole frame wins, even if UTC goes backwards.
+    const local = rows.filter(isLocal).reverse();
+    const latest = new Map();
+    for (const frame of local) if (!latest.has(frame.source_kind)) latest.set(frame.source_kind, frame);
+    const enabled = run.spec?.telemetry?.local?.enabled === true;
+    const sources = $("#local-telemetry-latest");
+    sources.replaceChildren();
+    let available = 0;
+    let total = 0;
+    if (enabled) for (const [kind, definition] of Object.entries(localSources)) {
+      const frame = latest.get(kind);
+      const section = element("section", null, "local-source");
+      const values = Object.entries(definition.metrics).map(([key, title]) => ({title, ...localValue(frame, key)}));
+      const count = values.filter((value) => value.available).length;
+      available += count;
+      total += values.length;
+      const status = frame ? localAvailability(count, values.length) : "等待首样本";
+      section.append(element("h4", `${definition.title} · ${status}`));
+      if (frame) {
+        const meta = element("p", `${frame.source || kind} · `, "local-source-meta");
+        meta.append(sampleTime(frame.timestamp));
+        section.append(meta);
+        const list = element("dl");
+        for (const value of values) list.append(element("dt", value.title),
+          element("dd", value.text, value.available ? "local-value" : "local-missing"));
+        section.append(list);
+      } else section.append(element("p", "本次尚未收到该来源的采样。", "muted"));
+      sources.append(section);
+    }
+    const lastStatus = local.length ? localAvailability(available, total) : "等待首样本";
+    const stopped = !activeStatuses.has(run.status);
+    const status = !enabled ? "未启用" : stopped ? "已停止" : lastStatus;
+    const badge = $("#local-telemetry-status");
+    badge.textContent = status + (enabled && stopped ? ` · ${local.length ? `最后样本：${lastStatus}` : "未收到样本"}` : "");
+    badge.dataset.state = !enabled ? "disabled" : stopped ? "stopped" : lastStatus === "可用" ? "available" : lastStatus === "部分缺失" ? "partial" : lastStatus === "失败" ? "failed" : "waiting";
+
+    const body = $("#local-telemetry-table tbody");
+    const entries = [];
+    let count = 0;
+    // Historical display order is independent of the current per-source state.
+    const history = [...local].sort((a, b) => b.timestamp - a.timestamp);
+    for (const frame of history) for (const [key, title] of Object.entries(localSources[frame.source_kind].metrics)) {
+      count += 1;
+      if (entries.length >= 200) continue;
+      const row = element("tr");
+      const time = element("td");
+      time.append(sampleTime(frame.timestamp));
+      const name = element("td", title);
+      name.append(element("small", key));
+      const value = localValue(frame, key);
+      row.append(time, element("td", frame.source || frame.source_kind), name,
+        element("td", value.text, value.available ? "local-value" : "local-missing"));
+      entries.push(row);
+    }
+    if (!entries.length) {
+      const row = element("tr");
+      const cell = element("td", "暂无本地采样记录。");
+      cell.colSpan = 4;
+      row.append(cell);
+      entries.push(row);
+    }
+    body.replaceChildren(...entries);
+    $("#local-telemetry-count").textContent = `显示最近 ${Math.min(count, 200)} 条指标记录，共 ${count} 条（最多 200 条，最新在前）。原始 JSON 保留本次返回的全部采样。`;
+    const exporters = Array.isArray(telemetry) ? rows.filter((frame) => !isLocal(frame)) : telemetry;
+    output("#exporter-telemetry", Object.keys(exporters).length ? exporters : "暂无 exporter 观测；本地采集不提供设备 GPU / KV 指标。");
+    output("#telemetry-raw", telemetry);
+  }
   function renderDetail(run) {
     const summary = run.summary || {};
     const metrics = summary.metrics || {};
@@ -618,7 +848,7 @@
       element("p", `覆盖率 ${ratio(quality.coverage)} · 通过率 ${ratio(quality.pass_rate)} · 错误率 ${ratio(metrics.error_rate)}`),
       element("small", "未知质量不计为通过。分母口径见完整指标定义。"));
     output("#goals", summary.goals?.length ? summary.goals.map((goal) => ({...goal, status: statusText(goal.status)})) : "暂无目标判定；未知不代表达标。");
-    output("#telemetry", run.telemetry && Object.keys(run.telemetry).length ? run.telemetry : "未知：本次没有可用资源观测。检查是否配置观测源及映射。");
+    renderTelemetry(run);
     renderRecommendations(run.diagnostics || []);
     const selected = $("#retest-candidate").value;
     $("#retest-candidate").replaceChildren(new Option("选择已记录的实验", ""));

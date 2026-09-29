@@ -81,7 +81,6 @@
             <label>每点预热请求数<input name="load.warmup" type="number" min="0" value="0" required></label>
             <label>重复次数<input name="load.repeats" type="number" min="1" max="20" value="1" required></label>
             <label>扫描点（逗号分隔）<input name="load.scan" placeholder="例如：1, 2, 4"><small>扫描当前模式的并发或 rate；每点独立记录。</small></label>
-            <label>随机种子<input name="load.seed" type="number" value="42" required></label>
             <label class="wide">类别混合比例（JSON）<textarea name="load.mix" rows="2" spellcheck="false">{}</textarea></label>
           <label>每请求最大输出（tokens）<input name="generation.max_tokens" type="number" min="1" value="256" required><small>样本自己的 max_tokens 优先于这里的默认值。</small></label>
           <label>Temperature<input name="generation.temperature" type="number" min="0" max="2" step="any" value="0" required></label>
@@ -100,9 +99,7 @@
           <label>最低质量通过率（0—1）<input name="goals.min_quality_pass_rate" type="number" min="0" max="1" step="any" value="1" required></label>
           <label>最低响应字符数<input name="quality.min_chars" type="number" min="0" value="1" required></label>
           <label>必需文本（JSON 数组）<textarea name="quality.required_text" rows="2" spellcheck="false">[]</textarea></label>
-          <label class="check"><input name="quality.require_json" type="checkbox">要求合法 JSON 输出</label>
           <label class="check"><input name="quality.reject_truncated" type="checkbox" checked>截断响应判为质量不通过</label>
-          <label class="wide">必需 JSON 字段（JSON 数组）<textarea name="quality.json_fields" rows="2" spellcheck="false">[]</textarea></label>
         </div></details>
         <details class="settings-group" id="safety-options"><summary>安全预算与资源观测</summary><p class="muted">预算覆盖扫描、重复和预热。导入数据或手动改参数不会自动放宽预算。</p><div class="form-grid">
           <label>总请求上限<input name="safety.max_requests" type="number" min="1" value="5" required></label>
@@ -112,7 +109,8 @@
           <label>计划输出上限（tokens）<input name="safety.max_output_tokens" type="number" min="1" value="1280" required></label>
           <label>单响应上限（bytes）<input name="safety.max_response_bytes" type="number" min="1" value="2097152" required></label>
           <label>观测间隔（s）<input name="telemetry.interval_s" type="number" min="0.1" step="any" value="1" required></label>
-          <label class="wide">Prometheus 观测源（JSON 数组）<textarea name="telemetry.sources" rows="5" spellcheck="false">[]</textarea><small>每源填写 name、url、api_key_env 与 mappings；映射保留 key / metric / kind / scale / labels / aggregation。空数组表示未配置观测。</small></label>
+          <label class="check wide"><input name="telemetry.local.enabled" type="checkbox">采集本机 Ollama 与内存<small>勾选即确认模型实际运行在工作台后端主机；隧道 / 端口转发不适用。</small></label>
+          <label class="wide">Prometheus 观测源（JSON 数组）<textarea name="telemetry.sources" rows="5" spellcheck="false">[]</textarea><small>每源填写 name、url、api_key_env 与 mappings；映射保留 key / metric / kind / scale / labels / aggregation。空数组表示未配置 exporter，不影响本地采集。</small></label>
           <label class="check"><input name="protocol_fixture" type="checkbox">协议替身实验（不代表模型性能）</label>
         </div></details>
         </details>
@@ -143,7 +141,22 @@
       </section>
       <div id="metrics" class="metric-grid"></div><p class="caption">TTFT = 首个可观测输出块；TPOT = 基于 usage 的均摊估计（ms/token），不是 ITL。非流式与缺失数据显式标为未知。</p>
       <div class="section-heading"><h2>性能口径与类别</h2></div><div class="table-scroll"><table id="category-table"><caption>按类别拆分的测量窗口</caption><thead><tr><th>类别</th><th>已发送</th><th>吞吐 req/s</th><th>E2E P95 ms</th><th>TTFT P95 ms</th></tr></thead><tbody></tbody></table></div><details><summary>全部指标、分位数与定义</summary><pre id="metric-details" class="output"></pre></details>
-      <div class="detail-columns"><section class="panel"><h2>质量与目标</h2><div id="quality"></div><pre id="goals" class="output"></pre><label class="file-label">导入人工质量标签<input id="labels-file" type="file" accept=".json,application/json"></label><small>JSON 对象：{request_id: "pass" | "fail" | "unknown"}；只匹配本次请求。</small><p id="labels-feedback" role="status"></p></section><section class="panel"><h2>资源观测</h2><p class="muted">保留原始名称、标签、单位与时间。缺失观测不等于零。</p><pre id="telemetry" class="output"></pre></section></div>
+      <div class="detail-columns"><section class="panel"><h2>质量与目标</h2><div id="quality"></div><pre id="goals" class="output"></pre><label class="file-label">导入人工质量标签<input id="labels-file" type="file" accept=".json,application/json"></label><small>JSON 对象：{request_id: "pass" | "fail" | "unknown"}；只匹配本次请求。</small><p id="labels-feedback" role="status"></p></section>
+        <section class="panel" id="telemetry"><h2>资源观测</h2>
+          <section id="local-telemetry-summary" aria-labelledby="local-telemetry-heading">
+            <div class="local-telemetry-heading"><h3 id="local-telemetry-heading">本地采集</h3><span id="local-telemetry-status" class="badge" role="status">未启用</span></div>
+            <p class="muted">后端主机 · 每个来源显示最新采样，缺失观测不等于零。</p>
+            <div id="local-telemetry-latest"></div>
+            <p class="local-scope">本地 GPU / KV：未提供。模型内存来自 size_vram，仅为模型 GPU 侧报告，不等于设备或 KV 内存；配置上下文是容量配置，非使用量。已有 exporter 数据独立保留。</p>
+          </section>
+          <details id="local-telemetry-history"><summary>展开本地采样记录</summary>
+            <p id="local-telemetry-count" class="muted"></p>
+            <div class="table-scroll"><table id="local-telemetry-table"><caption>本地资源时间序列 · UTC · 缺失值显示 null 与原因</caption><thead><tr><th scope="col">采样时间</th><th scope="col">来源</th><th scope="col">指标</th><th scope="col">值 / 状态</th></tr></thead><tbody></tbody></table></div>
+          </details>
+          <h3>Prometheus / exporter</h3><pre id="exporter-telemetry" class="output"></pre>
+          <details id="telemetry-raw-details"><summary>原始资源 JSON（全部来源）</summary><pre id="telemetry-raw" class="output"></pre></details>
+        </section>
+      </div>
       <section class="panel"><h2>证据与调整建议</h2><div id="recommendations"></div></section>
       <section class="panel">
         <h2>关联复测</h2>

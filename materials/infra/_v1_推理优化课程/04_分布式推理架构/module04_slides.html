@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模块四：分布式推理架构</title>
+<style>
+  :root{
+    --bg:#0f1226; --card:#1a1f3a; --ink:#eef1ff; --dim:#aab2d5;
+    --p1:#7c5cff; --p2:#22d3ee; --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
+    --a:var(--p1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:radial-gradient(1200px 700px at 20% -10%,#2a1a3a 0,transparent 60%),var(--bg);
+    color:var(--ink); line-height:1.65; overflow:hidden;
+  }
+  .slide{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    padding:48px 22px 96px; text-align:center;
+    opacity:0; visibility:hidden; transform:translateY(18px);
+    transition:opacity .4s ease, transform .4s ease;
+    pointer-events:none;
+  }
+  .slide.active{opacity:1; visibility:visible; transform:none; pointer-events:auto}
+  .inner{max-width:720px; width:100%}
+  .kicker{color:var(--a);font-weight:800;letter-spacing:3px;font-size:15px;margin-bottom:14px}
+  .emoji{font-size:68px;line-height:1;margin-bottom:18px;display:block}
+  h1{font-size:clamp(30px,7.5vw,48px);line-height:1.2;margin:6px 0 14px;
+     background:linear-gradient(90deg,var(--p1),var(--p2));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(22px,5.5vw,34px);line-height:1.3;margin:4px 0 14px}
+  .big{font-size:clamp(20px,5vw,28px);font-weight:800;margin:8px 0;color:var(--ink)}
+  p{color:#dfe4ff;font-size:clamp(16px,4.2vw,20px)}
+  .sub{color:var(--dim)}
+  .eg{background:#12162e;border:1px solid #2b315c;border-left:4px solid var(--a);
+    border-radius:12px;padding:15px 17px;margin-top:14px;text-align:left;
+    font-size:clamp(14px,3.8vw,17px);line-height:1.65;color:#dfe4ff}
+  .eg .lbl{color:var(--a);font-weight:800;font-size:14px;letter-spacing:1px;display:block;margin-bottom:7px}
+  .eg b{color:var(--ink)}
+  .eg .num{color:var(--warn);font-weight:800}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .card{background:#12162e;border:1px solid #2b315c;border-radius:14px;padding:14px 12px;text-align:left}
+  .card .ic{font-size:28px;margin-bottom:6px;display:block}
+  .card b{display:block;font-size:clamp(14px,3.6vw,17px);margin-bottom:4px;color:var(--ink)}
+  .card span{color:var(--dim);font-size:clamp(12px,3.1vw,14px);line-height:1.5}
+  .card.good{border-top:3px solid var(--good)}
+  .card.bad{border-top:3px solid var(--bad)}
+  .card.warn{border-top:3px solid var(--warn)}
+  .card.blue{border-top:3px solid var(--p1)}
+  .card.cyan{border-top:3px solid var(--p2)}
+  .metrics{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+  .metric{background:#12162e;border:1px solid #2b315c;border-radius:12px;
+    padding:12px 14px;flex:1;min-width:120px;text-align:center}
+  .metric .val{font-size:clamp(24px,6vw,36px);font-weight:900;color:var(--a);line-height:1}
+  .metric .label{color:var(--dim);font-size:12px;margin-top:3px}
+  .metric .desc{color:var(--ink);font-size:clamp(12px,3.1vw,14px);margin-top:5px}
+  .timeline{margin-top:14px;text-align:left}
+  .titem{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
+  .tnum{background:var(--a);color:#fff;border-radius:50%;width:26px;height:26px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto}
+  .ttext b{display:block;color:var(--ink);font-size:clamp(14px,3.6vw,17px)}
+  .ttext span{color:var(--dim);font-size:clamp(12px,3.1vw,14px)}
+  .tbl{width:100%;border-collapse:collapse;margin-top:12px;
+    font-size:clamp(12px,3.1vw,15px);overflow:hidden;border-radius:10px}
+  .tbl th,.tbl td{border:1px solid #2b315c;padding:9px 8px;text-align:center}
+  .tbl th{background:#23305c;color:var(--p2);font-weight:800}
+  .tbl td{background:#12162e}
+  .tbl tr td:first-child{color:var(--ink);font-weight:700;text-align:left}
+  .tbl .hi td{color:var(--good);font-weight:800;background:rgba(52,211,153,.08)}
+  .motto{font-size:clamp(20px,5vw,32px);font-weight:900;margin:10px 0;
+    background:linear-gradient(90deg,var(--p1),var(--p2));-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  .flow{display:flex;align-items:center;justify-content:center;gap:0;margin-top:16px;flex-wrap:wrap}
+  .fbox{background:#12162e;border:1px solid #2b315c;border-radius:10px;
+    padding:10px 14px;text-align:center;min-width:90px}
+  .fbox b{display:block;font-size:clamp(13px,3.4vw,16px);color:var(--ink)}
+  .fbox span{color:var(--dim);font-size:11px}
+  .farrow{font-size:20px;color:var(--a);padding:0 6px}
+  #bar{position:fixed;top:0;left:0;height:4px;width:0;
+    background:linear-gradient(90deg,var(--p1),var(--p2));transition:width .35s ease;z-index:30}
+  .nav{position:fixed;bottom:0;left:0;right:0;height:72px;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;background:linear-gradient(0deg,rgba(15,18,38,.95),transparent)}
+  .nav button{background:#1a1f3a;border:1px solid #2b315c;color:var(--ink);
+    width:48px;height:48px;border-radius:50%;font-size:22px;cursor:pointer;
+    display:grid;place-items:center;transition:.15s}
+  .nav button:hover{border-color:var(--p1)}
+  .nav button:disabled{opacity:.3;cursor:default}
+  #cnt{color:var(--dim);font-size:14px;font-weight:700;letter-spacing:1px}
+  .hint{position:fixed;bottom:84px;left:0;right:0;text-align:center;
+    color:#6f78a6;font-size:13px;z-index:20;animation:bob 1.6s ease-in-out infinite;pointer-events:none}
+  .hint.gone{display:none}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+  @keyframes pop{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+  .mod-tag{display:inline-block;background:rgba(124,92,255,.2);border:1px solid var(--p1);
+    border-radius:20px;padding:4px 14px;font-size:13px;color:var(--p1);font-weight:700;margin-bottom:12px}
+  .lecture-tag{display:inline-block;background:rgba(34,211,238,.15);border:1px solid var(--p2);
+    border-radius:20px;padding:3px 12px;font-size:13px;color:var(--p2);font-weight:700;margin-bottom:10px}
+  .gpu-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  .gpu-box{background:#1a1f3a;border:2px solid #2b315c;border-radius:10px;padding:10px 6px;text-align:center}
+  .gpu-box .gname{font-size:11px;color:var(--dim);margin-bottom:4px}
+  .gpu-box .glabel{font-size:clamp(11px,2.8vw,14px);color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+
+<!-- 封面 -->
+<section class="slide active">
+  <div class="inner">
+    <div class="mod-tag">AI Infra 优化实践 · 模块四</div>
+    <span class="emoji">🌐</span>
+    <h1>分布式推理架构</h1>
+    <p class="sub">当一台机器不够用——<br>如何把推理任务正确地拆分到多台机器上？</p>
+    <p style="margin-top:16px;color:var(--dim);font-size:14px">4讲 · 8学时 · 点击或按 → 翻页</p>
+  </div>
+</section>
+
+<!-- 模块核心问题 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">本模块核心问题</div>
+    <h2>一台机器放不下 700B 的模型<br>怎么办？</h2>
+    <div class="eg">
+      <span class="lbl">💡 分布式不只是"放得下"</span>
+      LLaMA-3-70B FP16 需要 <b>140GB 显存</b>——两张 A100 才能放下。<br>
+      但分布式推理还要解决：<b>通信效率、负载均衡、调度策略、成本控制</b>。<br><br>
+      乱切分不一定比单机快，甚至可能更慢——<b>并行策略选错了，通信开销会把计算收益全吃掉。</b>
+    </div>
+  </div>
+</section>
+
+<!-- 模块路线图 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">本模块 4 讲路线图</div>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--p1)">1</div>
+        <div class="ttext"><b>Tensor并行 + Pipeline并行</b><span> — TP列/行并行、PP气泡率、3D并行组合</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--p2)">2</div>
+        <div class="ttext"><b>Prefill-Decode 分离架构</b><span> — 前台接单/后厨分开，Splitwise/Distserve</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">3</div>
+        <div class="ttext"><b>集群调度与负载均衡</b><span> — 交通调度中心：路由/优先队列/背压</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">4</div>
+        <div class="ttext"><b>多模型路由与成本优化</b><span> — 聪明外包：RouteLLM/混部/Serverless</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲1封面 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="lecture-tag">讲 1 · Tensor 并行与 Pipeline 并行</div>
+    <span class="emoji">🏗️</span>
+    <h2>并行车间 +<br>流水线工位</h2>
+    <p class="sub">每个工位专注一道工序（Pipeline），<br>每道工序内部多台机器并行（Tensor Parallel）</p>
+  </div>
+</section>
+
+<!-- 讲1 类比 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">💡 直觉类比</div>
+    <h2>工厂里的两种并行</h2>
+    <div class="eg">
+      <span class="lbl">🏗️ Pipeline 并行（工位分工）</span>
+      一辆汽车要经过：冲压 → 焊接 → 涂装 → 总装。<br>
+      每道工序在独立车间（GPU）完成，上一道的输出是下一道的输入。<br>
+      <b>流水线满载时效率最高，但等待换批时有"气泡"（空转）。</b>
+    </div>
+    <div class="eg" style="margin-top:10px">
+      <span class="lbl">🔧 Tensor 并行（并行加工）</span>
+      焊接工序由4台机器同时焊接汽车的4个不同部分，最后合并。<br>
+      <b>减少单步时间，但需要多次合并（All-Reduce通信）。</b>
+    </div>
+  </div>
+</section>
+
+<!-- 讲1 TP原理 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">讲 1 · Tensor Parallel 原理</div>
+    <h2>权重切分：列并行 + 行并行</h2>
+    <div class="cards">
+      <div class="card blue">
+        <span class="ic">📊</span>
+        <b>列并行（Column Parallel）</b>
+        <span>权重矩阵按列切分到N个GPU<br>每个GPU只算输出的1/N列<br>无需通信，各自独立计算</span>
+      </div>
+      <div class="card blue">
+        <span class="ic">📊</span>
+        <b>行并行（Row Parallel）</b>
+        <span>权重矩阵按行切分<br>每个GPU算部分结果<br>最后 All-Reduce 合并</span>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">📐 Attention 层的 TP 切分方式</span>
+      Q/K/V 投影矩阵：<b>列并行</b>（每GPU负责部分头）<br>
+      Output 投影矩阵：<b>行并行</b>（合并结果）<br>
+      每个Transformer层只需 <b>2次 All-Reduce</b>
+    </div>
+  </div>
+</section>
+
+<!-- 讲1 PP气泡率 -->
+<section class="slide" style="--a:var(--p1)">
+  <div class="inner">
+    <div class="kicker">讲 1 · Pipeline Parallel 气泡率</div>
+    <h2>流水线的阿喀琉斯之踵</h2>
+    <div class="eg">
+      <span class="lbl">📐 气泡率公式</span>
+      <b>气泡率 = (p - 1) / (m + p - 1)</b><br>
+      p = Pipeline 级数（GPU数），m = Micro-batch 数<br><br>
+      p=8, m=2: 气泡率 = 7/9 = <span class="num">77%</span>（非常差！）<br>
+      p=8, m=32: 气泡率 = 7/39 = <span class="num">18%</span>（可接受）<br>
+      p=8, m=1000: 气泡率 ≈ <span class="num">1%</span>（趋近于0）
+    </div>
+    <div class="metrics" style="margin-top:12px">
+      <div class="metric"><div class="val" style="color:var(--bad)">77%</div><div class="desc">m=2时的气泡率</div></div>
+      <div class="metric"><div class="val" style="color:var(--good)">1%</div><div class="desc">m→∞时的理论下限</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲2封面 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="lecture-tag">讲 2 · Prefill-Decode 分离架构</div>
+    <span class="emoji">🍽️</span>
+    <h2>前台接单<br>与后厨分开</h2>
+    <p class="sub">前台快速接单（Prefill），后厨持续出菜（Decode）——<br>两个岗位的节奏和资源需求完全不同</p>
+  </div>
+</section>
+
+<!-- 讲2 类比 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">💡 直觉类比</div>
+    <h2>为什么混在一起效率低？</h2>
+    <div class="eg">
+      <span class="lbl">🍽️ 厨师兼收银员的困境</span>
+      想象一个厨师既要在前台收银、记订单（Prefill），<br>
+      又要在后厨持续翻炒出菜（Decode）——<br>
+      每次有新顾客，都必须停下炒锅去收银，<b>食物会糊，顾客也等很久。</b><br><br>
+      <b>Prefill（计算密集）和 Decode（内存密集）的资源需求完全不同：</b><br>
+      Prefill 需要高算力（Compute-Bound），Decode 需要高带宽（Memory-Bound）。
+    </div>
+  </div>
+</section>
+
+<!-- 讲2 PD分离架构 -->
+<section class="slide" style="--a:var(--p2)">
+  <div class="inner">
+    <div class="kicker">讲 2 · PD 分离系统设计</div>
+    <h2>Splitwise / Distserve 架构</h2>
+    <div class="flow">
+      <div class="fbox" style="border-color:var(--p2)"><b>请求进入</b><span>负载均衡器</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox" style="border-color:var(--p2)"><b>Prefill Pool</b><span>高算力GPU(A100)</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox" style="border-color:var(--good)"><b>KV 传输</b><span>RDMA/PCIe</span></div>
+      <div class="farrow">→</div>
+      <div class="fbox" style="border-color:var(--good)"><b>Decode Pool</b><span>高带宽GPU(L40S)</span></div>
+    </div>
+    <div class="cards" style="margin-top:14px">
+      <div class="card cyan">
+        <span class="ic">⚡</span>
+        <b>Prefill Pool</b>
+        <span>算力需求大<br>A100/H100更合适<br>并发请求少，Batch小</span>
+      </div>
+      <div class="card good">
+        <span class="ic">🔄</span>
+        <b>Decode Pool</b>
+        <span>内存带宽需求大<br>L40S/A10G更合适<br>持续生成，需要大内存</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲3封面 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="lecture-tag">讲 3 · 推理集群调度与负载均衡</div>
+    <span class="emoji">🚦</span>
+    <h2>城市交通<br>调度中心</h2>
+    <p class="sub">实时监控每条路的拥堵状况——<br>动态引导，保证紧急车辆优先通行</p>
+  </div>
+</section>
+
+<!-- 讲3 路由策略 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">💡 直觉类比</div>
+    <h2>四种路由策略的权衡</h2>
+    <table class="tbl">
+      <tr><th>策略</th><th>原理</th><th>优点</th><th>缺点</th></tr>
+      <tr><td>随机路由</td><td>随机分配</td><td>实现简单</td><td>可能不均衡</td></tr>
+      <tr><td>轮询（Round Robin）</td><td>依次轮流</td><td>均衡</td><td>忽略负载差异</td></tr>
+      <tr class="hi"><td>最少请求数</td><td>选队列最短的</td><td>动态均衡</td><td>忽略序列长度</td></tr>
+      <tr class="hi"><td>Prefix Cache亲和</td><td>同前缀→同实例</td><td>Cache命中率最高</td><td>可能不均衡</td></tr>
+    </table>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">📌 生产推荐：Prefix亲和 + 最少KV压力 兜底</span>
+      相同 System Prompt 的请求路由到同一实例，命中 Prefix Cache → TTFT 降低 60-90%
+    </div>
+  </div>
+</section>
+
+<!-- 讲3 优先队列+背压 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">讲 3 · 优先级队列 + 背压机制</div>
+    <h2>确保高优请求永远不等待</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--bad)">P0</div>
+        <div class="ttext"><b>关键业务（SLA &lt;100ms）</b><span> — 最高优先级，可抢占低优请求，不受背压限制</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">P1</div>
+        <div class="ttext"><b>普通业务（SLA &lt;2s）</b><span> — 正常排队，遇到背压时轻微限速</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">P2</div>
+        <div class="ttext"><b>批量任务（无SLA）</b><span> — 最低优先级，背压时直接拒绝，异步重试</span></div>
+      </div>
+    </div>
+    <div class="eg" style="margin-top:12px">
+      <span class="lbl">🚦 背压（Backpressure）机制</span>
+      下游GPU内存使用率 &gt;85% → 向上游发送背压信号 → 网关开始限速新请求<br>
+      防止因过载导致OOM → 全局雪崩
+    </div>
+  </div>
+</section>
+
+<!-- 讲4封面 -->
+<section class="slide" style="--a:var(--warn)">
+  <div class="inner">
+    <div class="lecture-tag">讲 4 · 多模型路由与成本优化</div>
+    <span class="emoji">💡</span>
+    <h2>聪明的外包策略</h2>
+    <p class="sub">简单任务给实习生，复杂任务给顾问——<br>在质量满足要求的前提下最大化成本节省</p>
+  </div>
+</section>
+
+<!-- 讲4 RouteLLM -->
+<section class="slide" style="--a:var(--warn)">
+  <div class="inner">
+    <div class="kicker">💡 直觉类比</div>
+    <h2>70% 的请求根本不需要最强模型</h2>
+    <div class="eg">
+      <span class="lbl">💡 RouteLLM 核心洞察</span>
+      用户问"今天星期几" → Llama-3-8B 完全可以回答<br>
+      用户问"帮我写一个复杂的分布式系统设计" → 需要 GPT-4o<br><br>
+      <b>RouteLLM 做的事</b>：训练一个轻量级路由器，预测每个请求的"难度"，
+      自动决定用小模型还是大模型——<b>相同质量下成本降低 40-60%</b>。
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="val" style="color:var(--good)">40-60%</div><div class="desc">同等质量成本节省</div></div>
+      <div class="metric"><div class="val" style="color:var(--warn)">~70%</div><div class="desc">可用小模型处理的请求比例</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 讲4 多模型混部+Serverless -->
+<section class="slide" style="--a:var(--warn)">
+  <div class="inner">
+    <div class="kicker">讲 4 · 混部 + Serverless 弹性</div>
+    <h2>从固定配置到弹性服务</h2>
+    <div class="cards">
+      <div class="card warn">
+        <span class="ic">🔀</span>
+        <b>多模型混部</b>
+        <span>同一集群同时跑 7B/13B/70B<br>路由器按请求难度动态分发<br>GPU利用率提升 30-50%</span>
+      </div>
+      <div class="card good">
+        <span class="ic">☁️</span>
+        <b>Serverless 弹性</b>
+        <span>无请求时缩容到0，节省成本<br>请求来时秒级扩容（需优化冷启动）<br>适合流量不稳定的业务场景</span>
+      </div>
+    </div>
+    <table class="tbl" style="margin-top:12px">
+      <tr><th>策略</th><th>延迟</th><th>吞吐</th><th>成本</th><th>适用场景</th></tr>
+      <tr><td>单模型专用</td><td>最低</td><td>最高</td><td>高</td><td>关键服务</td></tr>
+      <tr class="hi"><td>多模型混部路由</td><td>低</td><td>高</td><td>中</td><td>通用服务</td></tr>
+      <tr><td>Serverless弹性</td><td>有冷启动</td><td>弹性</td><td>最低</td><td>测试/低频服务</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 模块总结 -->
+<section class="slide" style="--a:var(--good)">
+  <div class="inner">
+    <div class="kicker">模块四 · 总结</div>
+    <h2>分布式推理的四层架构</h2>
+    <div class="timeline">
+      <div class="titem">
+        <div class="tnum" style="background:var(--p1)">1</div>
+        <div class="ttext"><b>计算并行层</b><span> — TP减延迟，PP提吞吐，3D并行组合使用；气泡率决定PP效率上限</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--p2)">2</div>
+        <div class="ttext"><b>部署架构层</b><span> — PD分离让Prefill/Decode各自优化，异质化硬件降本30%+</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--good)">3</div>
+        <div class="ttext"><b>调度控制层</b><span> — Prefix亲和路由+优先队列+背压机制，保证SLA不被破坏</span></div>
+      </div>
+      <div class="titem">
+        <div class="tnum" style="background:var(--warn)">4</div>
+        <div class="ttext"><b>成本优化层</b><span> — RouteLLM多模型路由+Serverless弹性，成本降低40-60%</span></div>
+      </div>
+    </div>
+    <div class="motto" style="margin-top:16px">分布式不只是"多几张卡"<br>是一套系统工程</div>
+  </div>
+</section>
+
+<div class="hint" id="hint">← → 方向键翻页 · 或点击导航按钮</div>
+
+<nav class="nav">
+  <button id="prev" onclick="go(-1)" disabled>&#8592;</button>
+  <span id="cnt">1 / 16</span>
+  <button id="next" onclick="go(1)">&#8594;</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const bar = document.getElementById('bar');
+  const cnt = document.getElementById('cnt');
+  const hint = document.getElementById('hint');
+  let cur = 0;
+
+  function show(n) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(slides.length - 1, n));
+    slides[cur].classList.add('active');
+    bar.style.width = ((cur + 1) / slides.length * 100) + '%';
+    cnt.textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === slides.length - 1;
+    if (cur > 0) hint.classList.add('gone');
+  }
+
+  function go(d) { show(cur + d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+  });
+
+  let ts = 0;
+  document.addEventListener('touchstart', e => { ts = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const d = ts - e.changedTouches[0].clientX;
+    if (Math.abs(d) > 40) go(d > 0 ? 1 : -1);
+  });
+
+  show(0);
+</script>
+</body>
+</html>

@@ -1,6 +1,54 @@
-# LLM 推理性能工程实战
+# LLM 推理系统与性能工程实战
 
-> 从模型原理、性能分析到 Serving 与 Agent 优化
+**完整 Course 结业输出：**[可测量、可诊断、可优化、可治理的推理服务及工程证据](COURSE-OUTPUT.md)。
+
+> 搭建模型服务 → 理解系统机制 → 测量诊断 → 优化验证 → 生产交付
+
+本目录是三门课程体系中的统一系统与性能课程。原02的全部系统材料已迁入本仓库的 `materials/infra/`，与30章教材、代码和参考书放在一起建设；旧02地址仅保留兼容链接，不再维护另一套课程。物理目录名称暂不重编号。
+
+## 从这里开始
+
+集中实训见 [推理系统与性能 Workshop](../workshop-delivery/inference-engineering/README.md)：三天、12节、18小时，含 [宣传一页纸](../workshop-delivery/inference-engineering/one-page.html)、HTML课件 [Day 1](../workshop-delivery/inference-engineering/slides/day1.html) / [Day 2](../workshop-delivery/inference-engineering/slides/day2.html) / [Day 3](../workshop-delivery/inference-engineering/slides/day3.html)、[实验手册](../workshop-delivery/inference-engineering/lessons.md)及[独立Demo](../workshop-delivery/inference-engineering/demo/README.md)。默认本地协议服务的计时是真实运行，但生成与延时为教学控制，不是LLM/GPU实测；真实模型服务为具备环境后的选做。
+
+| 你要做什么 | 入口 |
+|---|---|
+| 查看课程12模块与现有材料归属 | [统一材料索引](materials/README.md) |
+| 阅读正在写的30章教材 | [第一篇导读](content/part01.md) |
+| 使用已有章节代码 | [代码状态与逐章入口](code/README.md) |
+| 查找原系统课件、Notebook和历史设计 | [Infra补充材料](materials/infra/README.md) |
+| 深入训练系统 | [独立训练选修](materials/training-elective.md) |
+| 继续编写教材和实验 | [写作与工程策略](strategy/README.md) |
+
+当前主课为12个教学模块，教材仍按七篇30章组织。两者不是一一对应；材料索引标明如何复用原稿、补充系统机制，以及哪些内容只有占位规划、尚未预跑。
+
+## 学完交付什么
+
+完整实践交付一套可复现的模型服务，包含架构与资源选择、部署配置、运行手册、可信基线、瓶颈证据、优化对照、质量与成本检查和回归标准。已有服务的学员可从测量与诊断切入，系统知识按需补齐。
+
+**完整训练不是必修前置。** 复杂多机、MoE、P/D分离和Kernel优化按需进阶。仅有API权限时可完成客户端与应用层测量，但不能据此宣称完成模型部署、故障恢复、服务端或GPU诊断；完整系统实践仍需可访问的后端环境。
+
+应用方向可从Agent与AI软件工程衔接，也可直接进入本课程。[三块Workshop](../workshop-delivery/index.html)各自独立三天，本块选择单机服务、资源估算、可信测量、诊断与回归的集中实践路线，不替代30章教材的全部深度专题；模拟耗时不能作为真实服务性能基线。
+
+[当前课程体系](../README.md) · [三门主课大纲](../四门主课联合大纲.md) · [Agent课程](../01%20AI%20Agent关键技术与实践/README.md) · [AI软件工程材料](../03%20AI%20Native的软件工程方法与实践/README.md)
+
+## 统一建设目录
+
+```text
+content/                       30章教材、插图与附录，原位继续写作
+code/                          现有章节代码，原位维护
+ref/                           参考书与资料
+strategy/                      原有写作、设计与审阅记录
+materials/
+├── README.md                  12模块材料映射与缺口
+├── training-elective.md       训练独立选修入口
+└── infra/                     原02材料，历史树完整保留
+```
+
+目录归并后，新的集中教学包在 `../workshop-delivery/inference-engineering/` 独立维护，原教材与历史课件不批量重写。旧材料含历史版本、模拟结果和待核验数字，使用前须复核；新实验是否就绪以代码与运行证据分别判断。原根README的迁移前文本保存在materials中供追溯。
+
+## 教材主干：LLM 推理性能工程
+
+以下保留现有教材介绍和进度口径；章节正文、代码、图件和已有写作改动未因目录合并而重写。
 
 你把一个 LLM 服务跑起来了，用户说它慢。你打开监控，看到 P99 确实在涨。然后呢？
 
@@ -94,3 +142,5 @@ content/
 | 配套代码 | Ch1–5 可用，Ch6 以后撰写中 |
 | 插图 | Ch1–5 完成，Ch6 以后撰写中 |
 | 真机实验数据 | 部分章节标注为待实测 |
+
+“Ch1–5可用”表示已有代码入口，不代表这些章节所有真机证据都已齐备；例如Ch2真实证据报告仍有待补项。请按[代码逐章索引](code/README.md)核对，本轮不将Ch6以后的教学设计包装为现成实操课。

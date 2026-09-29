@@ -1,7 +1,7 @@
-# F08：实验期间的 Prometheus 观测
+# F08：实验期间的资源观测
 
-本切片只实现 `perfworkbench/telemetry.py`、`tests/test_telemetry.py` 和本文档。
-配置校验与实验启动/取消由父级实现；遵循 `contracts.md` 和已批准的架构、sprint。
+支持外部 Prometheus exporter 与可选的本机 Ollama/系统内存来源。
+配置校验与实验启动/取消由 runner 管理；遵循 `contracts.md` 和已批准的架构、sprint。
 构造采集器、读取快照不会访问网络。只有显式启动实验后，runner 才调用 `start()`。
 
 ## 接入接口
@@ -10,7 +10,7 @@
 from perfworkbench.telemetry import TelemetryCollector
 
 # spec 已由 ExperimentSpec 校验并 model_dump(mode="json")。
-collector = TelemetryCollector(spec["telemetry"], run_dir / "telemetry.jsonl")
+collector = TelemetryCollector(spec, run_dir / "telemetry.jsonl")
 collector.start()
 try:
     run_explicitly_launched_experiment()
@@ -31,7 +31,7 @@ samples = collector.snapshot()
   正常停止幂等。已停止的实例不可重新启动，应为下个实验构造新实例。
 - `snapshot()` 返回本实例全部已成功写入并 flush 的样本深拷贝；不读取文件中的历史实验。
   JSONL 以追加方式写入，每行一个样本，新建文件权限为 `0600`；一个输出路径应由一个采集器独占。
-  空 sources 不创建文件或线程。
+  空 sources 且未启用本机采集时，不创建文件或线程。
 - 文件打开/写入失败分别通过 `start()`/`stop()` 抛出安全消息
   `OSError("telemetry_output_unavailable")`。其他后台异常在 `stop()` 抛出
   `RuntimeError("telemetry_collection_failed")`；runner 应记录失败，不能将丢失观测当作完整采集。
@@ -140,6 +140,38 @@ KV 的 `*_perc` 已是 0–1，prefix cache 计数单位是 token。
 只把环境变量名写进配置；如端点不需认证，将 `api_key_env` 设为 null。
 认证协议当前仅支持环境变量读取的 Bearer token。硬件 exporter 通常不提供引擎队列/KV 指标；
 引擎 source 应独立配置。NVIDIA 或其他硬件 exporter 使用相同的显式映射流程，没有自动硬件探测。
+
+## 本机来源扩展（2026-09-29）
+
+启用 `telemetry.local.enabled` 时，构造 `TelemetryCollector` 必须传入包含 `endpoint` 的完整 spec。
+构造、查询或启动工作台本身不采集；只有主动实验的 `start()` 开始。
+默认 false，旧的只传 telemetry 配置调用方式仍适用于 exporter。
+
+新增 `local_system` 和 `local_ollama` 两类 `source_kind`，来源名称分别是 `local-system` 和 `local-ollama`。
+旧 exporter 缺少 `source_kind` 时按 prometheus 处理；分组须同时考虑类型与名称，不能合并同名不同类型源。
+本机源保留现有 frame/metric 字段、每行一个来源和缺失 null 语义。
+
+| key | 来源 / 单位 | 口径 |
+| --- | --- | --- |
+| host_memory_total_bytes | psutil / bytes | 后端主机物理内存总量 |
+| host_memory_available_bytes | psutil / bytes | 后端主机可用内存，不是 macOS 内存压力状态 |
+| host_swap_total_bytes | psutil / bytes | 系统 Swap 总量 |
+| host_swap_used_bytes | psutil / bytes | 系统已用 Swap，0 是有效观测 |
+| model_memory_bytes | Ollama size_vram / bytes | 选定模型报告的 GPU 侧内存，不是整卡已用内存或 KV 容量 |
+| model_context_tokens | Ollama context_length / tokens | 配置的上下文容量，不是当前占用 |
+
+仅 loopback root 或 `/v1`，保持端口与 scheme 构造 `/api/ps`，不猜代理路径、不补模型标签、
+不调用生成、不随重定向、不使用环境代理；响应上限 2 MiB。用户负责确认 loopback 不是远程隧道。
+每轮按 system、ollama、外部 exporter 顺序执行；模型源失败不会覆盖或丢弃系统样本。
+`stop()` 停止调度并排空当前在途请求，返回后不再改变 JSONL/快照。
+
+界面按最新样本展示缺失原因；脱敏报告保留 `latest`（最后一次样本，包括缺失），
+历史 `metrics.last` 仍表示最后有效观测，与 min/max/mean 一样不能代表当前状态。
+“最新”以追加顺序为准，不因 UTC 时钟回拨回退到旧的成功样本。
+Markdown/HTML 的 Latest telemetry 表单独保留来源类型、精确采样时间、值与缺失原因。
+模型名称及原始标签不进入分享报告。GPU/KV 未实现本地采样，不用内存反推。
+
+参考：<https://docs.ollama.com/api/ps>、<https://psutil.io/>。
 
 ## Counter 与重置
 

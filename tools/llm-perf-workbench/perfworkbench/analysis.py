@@ -392,6 +392,16 @@ def _eligibility(run):
     return reasons
 
 
+def _comparison_spec(spec):
+    """Ignore only the new opt-out default without changing stored experiment snapshots."""
+    telemetry = spec.get("telemetry")
+    if isinstance(telemetry, dict):
+        local = telemetry.get("local")
+        if isinstance(local, dict) and set(local) <= {"enabled"} and local.get("enabled", False) is False:
+            return {**spec, "telemetry": {key: value for key, value in telemetry.items() if key != "local"}}
+    return spec
+
+
 def compare_runs(runs: list[dict]) -> dict:
     """Compare aligned experiments; expose confounds and each run's gate failures."""
     reasons, differences, candidates = [], [], []
@@ -401,9 +411,9 @@ def compare_runs(runs: list[dict]) -> dict:
     if any(not isinstance(run_id, str) or not run_id for run_id in ids) or len(set(ids)) != len(ids):
         reasons.append("Run identifiers must be present and unique.")
     if runs:
-        reference = runs[0].get("spec") or {}
+        reference = _comparison_spec(runs[0].get("spec") or {})
         for run in runs[1:]:
-            config = run.get("spec") or {}
+            config = _comparison_spec(run.get("spec") or {})
             paths = _differences(reference, config)
             differences.extend({"run_id": run.get("id"), "field": path} for path in paths)
             for field in _ALIGNED_FIELDS:
@@ -613,7 +623,8 @@ def _kv_evidence(telemetry):
     """Keep source and series identity; gaps/resets invalidate counter deltas."""
     sources = {}
     for frame in _telemetry_frames(telemetry):
-        sources.setdefault(frame.get("source"), []).append(frame)
+        identity = (frame.get("source_kind", "prometheus"), frame.get("source"))
+        sources.setdefault(identity, []).append(frame)
     for frames in sources.values():
         counters = [_observation(frame, "preemptions_total") for frame in frames]
         if len(counters) < 2 or any(value is None for value in counters):

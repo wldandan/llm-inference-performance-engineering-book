@@ -123,7 +123,29 @@ uv run --locked perfworkbench retest 基线ID 复测ID --allow-change load.concu
 uv run --locked perfworkbench label 实验ID labels.json
 ```
 
-## vLLM / Ascend 资源指标
+## 资源指标采集
+
+### 本机 Ollama 与系统内存
+
+在“安全预算与资源观测”中勾选“采集本机 Ollama 与内存”，然后主动启动实验。
+默认关闭；不用安装 Prometheus。该选项确认模型实际运行在工作台后端所在主机，
+不适用于端口转发到远程机器的服务。只接受 loopback 的根路径或 `/v1` 地址。
+
+- 后端仅定时 GET 同源 `/api/ps`，按模型名称精确匹配，读取 `size_vram` 和 `context_length`；
+  不额外生成、加载或下载模型。密钥继续从配置的环境变量读取。
+- 系统总/可用内存与 Swap 来自工作台主机。`size_vram` 是 Ollama 报告的模型 GPU 侧内存，
+  不是整卡已用显存或 KV 占用；Apple Silicon 使用统一内存。上下文值是配置容量，不是已用 token 数。
+- 观测随实验启停并写入该实验的 `telemetry.jsonl`，结果页可看最新状态和采样记录。
+  采集期间可能包含预热；默认间隔 1 秒，每轮串行采集后等待，不保证精确周期。
+- 未加载、超时、权限/协议错误保留缺失原因，不填零、不沿用上次成功值。取消允许当前在途采样完成，
+  采集器停止返回后不再采样；单次网络超时不是严格的整体停止时限。
+- 本轮不启动 `sudo` 或 GPU 特权采样；本地来源不提供 GPU 活跃度和 KV 占用率。
+  已配置的外部 GPU/KV exporter 可以同时采集，不受影响。
+
+高级 JSON 配置：`"telemetry": {"interval_s": 1, "local": {"enabled": true}, "sources": []}`。
+旧配置缺少 `local` 时默认关闭。资源缺失不影响模型请求本身，不能据此声称完成 GPU/KV 瓶颈诊断。
+
+### 已有 Prometheus 格式 exporter
 
 在 `telemetry.sources` 配置 Prometheus exposition 地址。默认尝试已知 vLLM 指标别名；设备指标需要按实际 exporter 配置 metric、labels、scale、aggregation，见 [资源指标接入](docs/telemetry.md)。
 
