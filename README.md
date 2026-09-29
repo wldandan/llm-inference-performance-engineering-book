@@ -4,11 +4,11 @@
 
 > 搭建模型服务 → 理解系统机制 → 测量诊断 → 优化验证 → 生产交付
 
-本目录是三门课程体系中的统一系统与性能课程。原02的全部系统材料已迁入本仓库的 `materials/infra/`，与30章教材、代码和参考书放在一起建设；旧02地址仅保留兼容链接，不再维护另一套课程。物理目录名称暂不重编号。
+本仓库是生产级 Agent 工程体系中独立维护的 Manage 课程。原 AI Infra 系统材料已归入 `materials/infra/`，与30章教材、代码、实验和参考资料统一建设。
 
 ## 从这里开始
 
-集中实训见 [推理系统与性能 Workshop](../workshop-delivery/inference-engineering/README.md)：三天、12节、18小时，含 [宣传一页纸](../workshop-delivery/inference-engineering/one-page.html)、HTML课件 [Day 1](../workshop-delivery/inference-engineering/slides/day1.html) / [Day 2](../workshop-delivery/inference-engineering/slides/day2.html) / [Day 3](../workshop-delivery/inference-engineering/slides/day3.html)、[实验手册](../workshop-delivery/inference-engineering/lessons.md)及[独立Demo](../workshop-delivery/inference-engineering/demo/README.md)。默认本地协议服务的计时是真实运行，但生成与延时为教学控制，不是LLM/GPU实测；真实模型服务为具备环境后的选做。
+性能专项实验见 [`workshops/`](workshops/README.md)，覆盖模型内部机制、全局性能模型、批处理、KV Cache、Prefix Cache、CUDA Graph、推测解码与 Chunked Prefill。三天集中实训由[课程体系仓](https://github.com/wldandan/production-agent-engineering-curriculum)维护。
 
 | 你要做什么 | 入口 |
 |---|---|
@@ -17,6 +17,7 @@
 | 使用已有章节代码 | [代码状态与逐章入口](code/README.md) |
 | 查找原系统课件、Notebook和历史设计 | [Infra补充材料](materials/infra/README.md) |
 | 深入训练系统 | [独立训练选修](materials/training-elective.md) |
+| 运行性能专项实验 | [Workshop 实验](workshops/README.md) |
 | 继续编写教材和实验 | [写作与工程策略](strategy/README.md) |
 
 当前主课为12个教学模块，教材仍按七篇30章组织。两者不是一一对应；材料索引标明如何复用原稿、补充系统机制，以及哪些内容只有占位规划、尚未预跑。
@@ -27,9 +28,9 @@
 
 **完整训练不是必修前置。** 复杂多机、MoE、P/D分离和Kernel优化按需进阶。仅有API权限时可完成客户端与应用层测量，但不能据此宣称完成模型部署、故障恢复、服务端或GPU诊断；完整系统实践仍需可访问的后端环境。
 
-应用方向可从Agent与AI软件工程衔接，也可直接进入本课程。[三块Workshop](../workshop-delivery/index.html)各自独立三天，本块选择单机服务、资源估算、可信测量、诊断与回归的集中实践路线，不替代30章教材的全部深度专题；模拟耗时不能作为真实服务性能基线。
+应用方向可从 Agent 与 AI 软件工程衔接，也可直接进入本课程。三天集中实训选择单机服务、资源估算、可信测量、诊断与回归的核心路线，不替代30章教材和本仓性能专项实验的全部深度；模拟耗时不能作为真实服务性能基线。
 
-[当前课程体系](../README.md) · [三门主课大纲](../四门主课联合大纲.md) · [Agent课程](../01%20AI%20Agent关键技术与实践/README.md) · [AI软件工程材料](../03%20AI%20Native的软件工程方法与实践/README.md)
+[课程体系](https://github.com/wldandan/production-agent-engineering-curriculum) · [Agent 课程](https://github.com/wldandan/ai-agent-engineering-course) · [AI 原生软件工程课程](https://github.com/wldandan/ai-native-software-engineering-course)
 
 ## 统一建设目录
 
@@ -38,13 +39,14 @@ content/                       30章教材、插图与附录，原位继续写�
 code/                          现有章节代码，原位维护
 ref/                           参考书与资料
 strategy/                      原有写作、设计与审阅记录
+workshops/                     可复现的推理性能专项实验
 materials/
 ├── README.md                  12模块材料映射与缺口
 ├── training-elective.md       训练独立选修入口
 └── infra/                     原02材料，历史树完整保留
 ```
 
-目录归并后，新的集中教学包在 `../workshop-delivery/inference-engineering/` 独立维护，原教材与历史课件不批量重写。旧材料含历史版本、模拟结果和待核验数字，使用前须复核；新实验是否就绪以代码与运行证据分别判断。原根README的迁移前文本保存在materials中供追溯。
+三天集中教学包由课程体系仓独立维护，本仓聚焦完整课程、教材、工具和性能专项实验。旧材料含历史版本、模拟结果和待核验数字，使用前须复核；实验是否就绪以代码与运行证据分别判断。
 
 ## 教材主干：LLM 推理性能工程
 
