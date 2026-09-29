@@ -1,4 +1,4 @@
-"""Chapter 02 streaming client: send real streaming requests to a vLLM OpenAI-compatible server.
+"""Chapter 01 streaming client: send real streaming requests to a vLLM OpenAI-compatible server.
 
 This script records client-observed first-content time, chunk intervals,
 total latency, server-reported token usage, and optional GPU snapshots.
