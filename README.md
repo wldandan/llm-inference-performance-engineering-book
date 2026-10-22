@@ -13,7 +13,7 @@
 
 Book 与 Course 共享知识体系，但发布节奏独立。Course 可以引用确定版本的章节，不在课程仓复制书稿。
 
-**在线阅读：<https://wldandan.github.io/llm-inference-performance-handbook/>**
+**在线阅读：<https://wldandan.github.io/llm-inference-performance-engineering-book/>**
 
 你把一个 LLM 服务跑起来了，用户说它慢。你打开监控，看到 P99 确实在涨。然后呢？
 
@@ -99,7 +99,7 @@ GPU 架构与 Roofline、CUDA 与 Kernel Profiling、多 GPU、MoE、PD 分离�
 
 ## 从哪里开始
 
-直接读，用网页版：<https://wldandan.github.io/llm-inference-performance-handbook/>。
+直接读，用网页版：<https://wldandan.github.io/llm-inference-performance-engineering-book/>。
 
 想看源文件、跑 Demo 或提 issue，正文在 [`content/`](content/)：
 
