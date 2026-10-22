@@ -1,0 +1,20 @@
+{
+  "_note": "合成设定。这不是真机项目，而是按第 30 章五项交付物、九块报告契约和八条自查构造的一份样例，用来演示 verify.py 的输出。",
+  "framework_version": "vllm@0.6.3",
+  "model": "Qwen2.5-0.5B-Instruct",
+  "gpu": "1 × 24GiB",
+  "rounds": 5,
+  "ttft_p95_ms": {
+    "mean": 1180,
+    "cv": 0.024
+  },
+  "itl_p95_ms": {
+    "mean": 41,
+    "cv": 0.031
+  },
+  "throughput_tps": {
+    "mean": 742,
+    "cv": 0.018
+  },
+  "environment_fingerprint": "vllm@0.6.3 / cuda@12.4 / driver@550.90"
+}

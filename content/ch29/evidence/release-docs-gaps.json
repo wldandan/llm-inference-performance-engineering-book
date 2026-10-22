@@ -1,0 +1,94 @@
+{
+  "_note": "合成设定。这份材料复现 29.2 那句“最容易被跳过的是第五和第八项”，以及 29.8 的案例二和案例三：监控清单里缺 itl_distribution，回滚预案没有演练量出来的耗时、也没写缓存恢复期。其余七项都齐备，接缝也都对得上——所以不通过的原因只有这两项。",
+  "release": "svc-chat v2.3.0",
+  "date": "2026-09-30",
+  "owner": "推理平台组，值班人 mango",
+  "slo": {
+    "ttft_p95_ms": 2000,
+    "itl_p95_ms": 60,
+    "error_rate": 0.001,
+    "measurable": true,
+    "load_point": "批量 32，日内波峰 QPS 89"
+  },
+  "baseline": {
+    "framework_version": "vllm@0.6.3",
+    "model": "Qwen2.5-7B-Instruct",
+    "gpu": "1 × 80GiB",
+    "rerun_on_current_config": true,
+    "rerun_date": "2026-09-28"
+  },
+  "capacity": {
+    "context_tokens": 2600,
+    "output_tokens": 220,
+    "instances": 8,
+    "source": "第 16 章容量表第 9 步，打折 75%",
+    "binding_constraint": "memory",
+    "floor_instances": 3,
+    "_binding_note": "这个服务 system prompt 长、并发受 KV 限制，是显存先满；所以上下文变长可以直接换算成卡数（29.7）。"
+  },
+  "gate": {
+    "verdict": "pass",
+    "batch": 32,
+    "absolute_ttft_p95_ms": 2000,
+    "run_id": "gate-2026-09-25-03",
+    "waiver": null
+  },
+  "runtime": {
+    "framework_version": "vllm@0.6.3",
+    "batch": 32,
+    "prompt_template_tokens": 2600,
+    "system_prompt_tokens": 800
+  },
+  "autoscale": {
+    "min_instances": 3,
+    "max_instances": 24,
+    "scale_up_threshold": 0.7,
+    "scale_down_threshold": 0.4
+  },
+  "monitoring": {
+    "available_metrics": [
+      "ttft_p95",
+      "itl_p95",
+      "error_rate",
+      "rejection_rate",
+      "slo_attainment",
+      "running_ratio",
+      "queue_length",
+      "preemption_count",
+      "kv_usage"
+    ],
+    "dashboard": "perf/serving-overview",
+    "verified_by": "只看了面板上有图，没确认每条曲线都出数"
+  },
+  "traffic_policy": {
+    "admission": {
+      "enabled": true,
+      "max_queue": 120
+    },
+    "timeout": {
+      "ttft_ms": 3000,
+      "total_ms": 60000
+    },
+    "cancellation": {
+      "propagate": true
+    },
+    "retry": {
+      "max_attempts": 2,
+      "budget_share": 0.1
+    },
+    "backpressure": {
+      "reject_over_queue": 120
+    }
+  },
+  "cold_start_s": 300,
+  "rollback": {
+    "trigger_conditions": [
+      "P95 TTFT 连续 10 分钟超过 2000 ms"
+    ],
+    "rehearsed_duration_min": null,
+    "cache_warmup_min": null,
+    "irreversible": [
+      "已写入的对话日志"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "_note": "12.2 那张分段表写成文件。段的顺序就是拼进 prompt 的顺序，固定内容在最前面（13.3 的前提条件）。",
+  "name": "rag-customer-support",
+  "segments": [
+    {
+      "name": "system prompt",
+      "source": "fixed",
+      "tokens": 200
+    },
+    {
+      "name": "few-shot 示例",
+      "source": "fixed",
+      "tokens": 400
+    },
+    {
+      "name": "检索片段",
+      "source": "retrieval",
+      "tokens_per_item": 200,
+      "items": 10
+    },
+    {
+      "name": "对话历史",
+      "source": "history",
+      "tokens_per_item": 260,
+      "items": 0
+    },
+    {
+      "name": "用户问题",
+      "source": "user",
+      "tokens": 30
+    }
+  ],
+  "baseline": {
+    "_note": "12.1 的实测锚点：Top-K=3（1230 token）时 TTFT 320 ms。绝对毫秒数只能从实测来。",
+    "tokens": 1230,
+    "ttft_ms": 320
+  },
+  "pricing": {
+    "_note": "单价按你自己的合同填，这里只是占位。",
+    "input_per_1k": 0.0005
+  }
+}

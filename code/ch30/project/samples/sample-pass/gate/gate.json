@@ -1,0 +1,43 @@
+{
+  "_note": "合成设定。这不是真机项目，而是按第 30 章五项交付物、九块报告契约和八条自查构造的一份样例，用来演示 verify.py 的输出。",
+  "batch": 16,
+  "absolute_ttft_p95_ms": 1500,
+  "thresholds": {
+    "p50_latency_ms": 0.05,
+    "p95_latency_ms": 0.1,
+    "throughput_tps": 0.05,
+    "peak_memory_gib": 0.02
+  },
+  "threshold_basis": "连续 20 轮采集，各指标按自己的变异系数取约三倍：P50 的 CV 1.6% 取 5%，P95 的 CV 3.3% 取 10%，吞吐 1.5% 取 5%，显存 0.4% 取 2%（显存双向判）",
+  "assertions": [
+    "ttft_p95_within_threshold",
+    "prefix_hit_rate_above_0_6",
+    "no_preemption_at_target_batch",
+    "attention_kernel_allowlisted"
+  ],
+  "baseline_update_rule": "只在 improvement 或 accepted_regression 两种情形换，需签字",
+  "rollback": {
+    "trigger_conditions": [
+      "P95 TTFT 连续 10 分钟超过 1500 ms",
+      "错误率连续 5 分钟超过 1%"
+    ],
+    "steps": [
+      "网关权重切回旧版本",
+      "等在途请求跑完",
+      "缩掉新版本实例"
+    ],
+    "rehearsed_duration_min": 9,
+    "rehearsed_date": "2026-09-30",
+    "irreversible": [
+      "已写入的对话日志"
+    ],
+    "cache_warmup_min": 15
+  },
+  "observation_windows": [
+    "前 10 分钟：错误率与拒绝率",
+    "前 2 小时：命中率恢复曲线、抢占计数、显存",
+    "前 24 小时：波峰下核对容量模型",
+    "前 7 天：成本与质量"
+  ],
+  "owner": "推理平台组，值班人 mango"
+}

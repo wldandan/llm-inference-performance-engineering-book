@@ -1,0 +1,7 @@
+{
+  "_note": "合成设定。28.3 那张按指标分的阈值表。",
+  "p50_latency_ms": 0.05,
+  "p95_latency_ms": 0.1,
+  "throughput_tps": 0.05,
+  "peak_memory_gib": 0.02
+}

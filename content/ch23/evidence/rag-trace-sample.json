@@ -1,0 +1,173 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机采集。这份 trace 的基准是 final_k = 15、上下文 9000 token，用来跑 23.7 那个 whatif：把 final_k 降到 5 估出来省约 900 ms，跳过改写省 180 ms。用在自己的链路上时，接真链路采一份替换。",
+  "endpoint": "http://localhost:9000/rag",
+  "repeat": 3,
+  "cold_start": true,
+  "knowledge_base": {
+    "version": "kb-2026-09-01",
+    "documents": 184000,
+    "vector_dim": 1024
+  },
+  "cache_status": {
+    "retrieval_cache": {
+      "enabled": false
+    },
+    "prefix_cache": {
+      "enabled": true,
+      "hit_rate": 0.62
+    },
+    "answer_cache": {
+      "enabled": false
+    }
+  },
+  "retrieval": {
+    "index_size": 184000,
+    "top_k": 200,
+    "rerank_candidates": 200,
+    "final_k": 15,
+    "query_repeat_rate": 0.18
+  },
+  "context_tokens": 9000,
+  "context_composition": {
+    "fixed_tokens": 1500,
+    "tokens_per_chunk": 500
+  },
+  "calls": [
+    {
+      "query_id": "q-001",
+      "temperature": "cold",
+      "pass": 0,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 352.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1410.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-001",
+      "temperature": "warm",
+      "pass": 1,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 96.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1396.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-001",
+      "temperature": "warm",
+      "pass": 2,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 94.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1404.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-002",
+      "temperature": "cold",
+      "pass": 0,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 338.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1400.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-002",
+      "temperature": "warm",
+      "pass": 1,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 95.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1398.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-002",
+      "temperature": "warm",
+      "pass": 2,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 93.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1402.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-003",
+      "temperature": "cold",
+      "pass": 0,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 330.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1390.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-003",
+      "temperature": "warm",
+      "pass": 1,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 97.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1400.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    },
+    {
+      "query_id": "q-003",
+      "temperature": "warm",
+      "pass": 2,
+      "stages": {
+        "rewrite": 180.0,
+        "embed": 25.0,
+        "retrieve": 95.0,
+        "rerank": 210.0,
+        "assemble": 4.0,
+        "ttft": 1400.0,
+        "generate": 1800.0
+      },
+      "context_tokens": 9000
+    }
+  ]
+}

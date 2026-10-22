@@ -81,11 +81,97 @@ class ChapterZeroFigureTests(unittest.TestCase):
         self.assertIn("真实系统已经绕开了", source)
         for ordinal in ["第一条规律", "第二条规律", "第三条规律"]:
             self.assertIn(ordinal, source)
-        # 只有 0.7 的案例和误区使用三级标题，节内不再切带编号的小节。
-        self.assertEqual(re.findall(r"(?m)^### \d", source), [])
-        self.assertLessEqual(len(re.findall(r"(?m)^### ", source)), 5)
+        # 概述章只有编号小节，没有三级标题，也没有案例、Checklist、课后练习。
+        self.assertEqual(re.findall(r"(?m)^### ", source), [])
+        for furniture in ("## 学习目标", "## 本章总结", "### 本章 Checklist",
+                          "## 课后练习", "## 0.7 "):
+            self.assertNotIn(furniture, source)
         self.assertNotIn("## 延伸阅读", source)
         self.assertIn("29.64 ms", source)
+
+    def test_price_table_matches_what_was_actually_checked(self):
+        source = (CHAPTER_DIR / "ch00.md").read_text(encoding="utf-8")
+        # 0.1 那张表只引用核对过的一家价目表，并写出查询日期与模型数。
+        self.assertIn("2026 年 9 月 24 日查询", source)
+        self.assertIn("18 个模型", source)
+        self.assertIn("输出单价恰好是输入的 5 倍", source)
+        self.assertIn("十分之一，最深的到四十分之一", source)
+        # 缓存写入溢价必须出现，否则 0.3 那句“便宜得多”没有代价。
+        self.assertIn("1.25 倍", source)
+        # 两条核对不到的说法不许再出现。
+        self.assertNotIn("3 到 5 倍", source)
+        self.assertNotIn("五十分之一", source)
+        self.assertNotIn("错峰", source)
+        self.assertNotIn("几乎不要钱", source)
+        # 0.5 那个“先解释再作答”的例子，倍数必须和表里一致。
+        self.assertIn("输出单价是输入的 5 倍", source)
+
+    def test_main_line_is_handed_over_explicitly(self):
+        source = (CHAPTER_DIR / "ch00.md").read_text(encoding="utf-8")
+        self.assertIn("运行 → 测量 → 诊断 → 优化 → 验证 → 上线守护", source)
+        self.assertIn("往后每一篇开头都会告诉你走到了主线的哪一步", source)
+
+    def test_every_part_opener_locates_itself_on_the_main_line(self):
+        content_dir = CHAPTER_DIR.parent
+        openers = sorted(content_dir.glob("part0*.md"))
+        self.assertEqual(len(openers), 7)
+        for path in openers:
+            with self.subTest(part=path.name):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("主线位置：", text)
+                self.assertIn("和第 0 章的关系：", text)
+        # Part 1 还要显式接过第 0 章交出来的那条主线。
+        first = (content_dir / "part01.md").read_text(encoding="utf-8")
+        self.assertIn("第 0 章交出了一条主线", first)
+        self.assertIn("运行 → 测量 → 诊断 → 优化 → 验证 → 上线守护", first)
+
+    def test_part_openers_keep_one_bold_per_paragraph(self):
+        content_dir = CHAPTER_DIR.parent
+        for path in sorted(content_dir.glob("part0*.md")):
+            for number, line in enumerate(
+                path.read_text(encoding="utf-8").split("\n"), start=1
+            ):
+                with self.subTest(part=path.name, line=number):
+                    self.assertLessEqual(len(re.findall(r"\*\*[^*]+\*\*", line)), 1)
+
+    def test_every_case_declares_its_provenance(self):
+        """三个情景例子折进了正文，每个仍要就地标明是合成设定。"""
+        source = (CHAPTER_DIR / "ch00.md").read_text(encoding="utf-8")
+        anchors = ["一个客服助手平均每次输入 2000 个 token",
+                   "把请求集中到更少的卡上",
+                   "一个接口平均每次输入 1000 个 token"]
+        self.assertEqual(source.count("（合成设定）"), len(anchors))
+        for anchor in anchors:
+            start = source.index(anchor)
+            with self.subTest(case=anchor[:12]):
+                self.assertIn("合成设定", source[max(0, start - 120): start + 120])
+
+    def test_reading_cost_claim_stays_an_upper_bound(self):
+        source = (CHAPTER_DIR / "ch00.md").read_text(encoding="utf-8")
+        # 29.64 ms 里还含着写出首 token 和网络，不能整段记在“读 30 个 token”头上。
+        self.assertIn("读 30 个 token 连同写出第一个 token", source)
+        self.assertNotIn("读 30 个 token，只相当于写三段的时间", source)
+        self.assertIn("29.64 ÷ 9.15 ≈ 3.2", source)
+
+    def test_fixed_components_match_the_rest_of_the_book(self):
+        content_dir = CHAPTER_DIR.parent
+        counts = {}
+        for number in range(0, 31):
+            path = content_dir / f"ch{number:02d}" / f"ch{number:02d}.md"
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(chapter=number):
+                # 延伸方向是只剩两章在用的旧模板，全书已统一去掉。
+                self.assertNotIn("### 延伸方向", text)
+            if number == 0:
+                # 第 0 章是全书概述，不设 Checklist 和课后练习（写作规则 3.1）。
+                self.assertNotIn("## 课后练习", text)
+                continue
+            tail = text.split("## 课后练习")[-1]
+            counts[number] = len(re.findall(r"(?m)^\d+\. ", tail))
+        # 第 1 至 30 章的课后练习一律 8 题。
+        self.assertEqual(sorted(counts), list(range(1, 31)))
+        self.assertEqual(sorted(set(counts.values())), [8], counts)
+
 
 
 if __name__ == "__main__":

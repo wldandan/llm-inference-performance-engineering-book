@@ -1,0 +1,79 @@
+{
+  "_note": "合成设定。这不是真机项目，而是按第 30 章五项交付物、九块报告契约和八条自查构造的一份样例，用来演示 verify.py 的输出。",
+  "rounds": [
+    {
+      "id": "r1",
+      "expectation": "前缀命中后 TTFT 下降两成以上",
+      "changed": [
+        "开启 Prefix Cache"
+      ],
+      "conditions": {
+        "批量": 16,
+        "上下文": 1800,
+        "缓存": "热",
+        "并发": 16
+      },
+      "primary": {
+        "ttft_p95_ms": 902
+      },
+      "guardrails": {
+        "itl_p95_ms": 42,
+        "preemption_count": 0,
+        "task_success_rate": 0.995
+      },
+      "verdict": "改善且超过波动",
+      "boundary": "仅在同一知识库、前缀重合度 0.7 以上时成立"
+    },
+    {
+      "id": "r2",
+      "expectation": "分块 Prefill 能压平 ITL 抖动",
+      "changed": [
+        "chunked prefill 分块大小改为 512"
+      ],
+      "conditions": {
+        "批量": 16,
+        "上下文": 1800,
+        "缓存": "冷"
+      },
+      "primary": {
+        "itl_p95_ms": 40
+      },
+      "guardrails": {
+        "ttft_p95_ms": 1195,
+        "preemption_count": 0,
+        "task_success_rate": 0.996
+      },
+      "verdict": "在当前实验精度下不可分辨",
+      "boundary": "本轮改动落在 Baseline 波动内，不作为结论"
+    },
+    {
+      "id": "r3",
+      "expectation": "KV 量化把并发上限抬一档",
+      "changed": [
+        "KV Cache 精度改为 FP8"
+      ],
+      "conditions": {
+        "批量": 16,
+        "上下文": 1800,
+        "缓存": "热"
+      },
+      "primary": {
+        "max_concurrency": 38
+      },
+      "guardrails": {
+        "ttft_p95_ms": 1204,
+        "itl_p95_ms": 43,
+        "preemption_count": 0
+      },
+      "quality": {
+        "metric": "retrieval_em",
+        "before": 0.712,
+        "after": 0.709,
+        "floor": 0.7,
+        "decided_before_run": true
+      },
+      "verdict": "改善且超过波动",
+      "boundary": "仅在这一档模型与这份知识库上验证过"
+    }
+  ]
+}

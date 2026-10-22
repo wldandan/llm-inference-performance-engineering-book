@@ -1,0 +1,1093 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机采集。阶梯式增压四档，用来演示 20.7 那三个信号的先后顺序与 lead_time 的读法。用在自己的服务上时，用 collect 采一份真数据替换。",
+  "url": "http://localhost:8000",
+  "interval_s": 0.5,
+  "duration_s": 60.0,
+  "running_limit": 64,
+  "max_num_batched_tokens": 2048,
+  "tokens_per_step": false,
+  "tokens_field_note": "batched_tokens 按 collect 的口径给：一个采样间隔内 prompt_tokens_total 的差分，不含 Decode，也不是单步值，所以 analyze 不拿它和每步预算比",
+  "samples": [
+    {
+      "t": 0.0,
+      "running": 13,
+      "waiting": 0,
+      "running_ratio": 0.2,
+      "kv_usage": 0.3,
+      "preemption_total": 0,
+      "batched_tokens": 900
+    },
+    {
+      "t": 0.5,
+      "running": 14,
+      "waiting": 0,
+      "running_ratio": 0.22,
+      "kv_usage": 0.311,
+      "preemption_total": 0,
+      "batched_tokens": 908
+    },
+    {
+      "t": 1.0,
+      "running": 15,
+      "waiting": 0,
+      "running_ratio": 0.24,
+      "kv_usage": 0.322,
+      "preemption_total": 0,
+      "batched_tokens": 916
+    },
+    {
+      "t": 1.5,
+      "running": 17,
+      "waiting": 0,
+      "running_ratio": 0.26,
+      "kv_usage": 0.333,
+      "preemption_total": 0,
+      "batched_tokens": 924
+    },
+    {
+      "t": 2.0,
+      "running": 18,
+      "waiting": 0,
+      "running_ratio": 0.28,
+      "kv_usage": 0.344,
+      "preemption_total": 0,
+      "batched_tokens": 932
+    },
+    {
+      "t": 2.5,
+      "running": 19,
+      "waiting": 0,
+      "running_ratio": 0.3,
+      "kv_usage": 0.355,
+      "preemption_total": 0,
+      "batched_tokens": 940
+    },
+    {
+      "t": 3.0,
+      "running": 20,
+      "waiting": 0,
+      "running_ratio": 0.32,
+      "kv_usage": 0.366,
+      "preemption_total": 0,
+      "batched_tokens": 948
+    },
+    {
+      "t": 3.5,
+      "running": 22,
+      "waiting": 0,
+      "running_ratio": 0.34,
+      "kv_usage": 0.377,
+      "preemption_total": 0,
+      "batched_tokens": 956
+    },
+    {
+      "t": 4.0,
+      "running": 23,
+      "waiting": 0,
+      "running_ratio": 0.36,
+      "kv_usage": 0.388,
+      "preemption_total": 0,
+      "batched_tokens": 964
+    },
+    {
+      "t": 4.5,
+      "running": 24,
+      "waiting": 0,
+      "running_ratio": 0.38,
+      "kv_usage": 0.399,
+      "preemption_total": 0,
+      "batched_tokens": 972
+    },
+    {
+      "t": 5.0,
+      "running": 26,
+      "waiting": 0,
+      "running_ratio": 0.4,
+      "kv_usage": 0.41,
+      "preemption_total": 0,
+      "batched_tokens": 980
+    },
+    {
+      "t": 5.5,
+      "running": 27,
+      "waiting": 0,
+      "running_ratio": 0.42,
+      "kv_usage": 0.421,
+      "preemption_total": 0,
+      "batched_tokens": 988
+    },
+    {
+      "t": 6.0,
+      "running": 28,
+      "waiting": 0,
+      "running_ratio": 0.44,
+      "kv_usage": 0.432,
+      "preemption_total": 0,
+      "batched_tokens": 996
+    },
+    {
+      "t": 6.5,
+      "running": 29,
+      "waiting": 0,
+      "running_ratio": 0.46,
+      "kv_usage": 0.443,
+      "preemption_total": 0,
+      "batched_tokens": 1004
+    },
+    {
+      "t": 7.0,
+      "running": 31,
+      "waiting": 0,
+      "running_ratio": 0.48,
+      "kv_usage": 0.454,
+      "preemption_total": 0,
+      "batched_tokens": 1012
+    },
+    {
+      "t": 7.5,
+      "running": 32,
+      "waiting": 0,
+      "running_ratio": 0.5,
+      "kv_usage": 0.465,
+      "preemption_total": 0,
+      "batched_tokens": 1020
+    },
+    {
+      "t": 8.0,
+      "running": 33,
+      "waiting": 0,
+      "running_ratio": 0.52,
+      "kv_usage": 0.476,
+      "preemption_total": 0,
+      "batched_tokens": 1028
+    },
+    {
+      "t": 8.5,
+      "running": 35,
+      "waiting": 0,
+      "running_ratio": 0.54,
+      "kv_usage": 0.487,
+      "preemption_total": 0,
+      "batched_tokens": 1036
+    },
+    {
+      "t": 9.0,
+      "running": 36,
+      "waiting": 0,
+      "running_ratio": 0.56,
+      "kv_usage": 0.498,
+      "preemption_total": 0,
+      "batched_tokens": 1044
+    },
+    {
+      "t": 9.5,
+      "running": 37,
+      "waiting": 0,
+      "running_ratio": 0.58,
+      "kv_usage": 0.509,
+      "preemption_total": 0,
+      "batched_tokens": 1052
+    },
+    {
+      "t": 10.0,
+      "running": 38,
+      "waiting": 0,
+      "running_ratio": 0.6,
+      "kv_usage": 0.52,
+      "preemption_total": 0,
+      "batched_tokens": 1060
+    },
+    {
+      "t": 10.5,
+      "running": 40,
+      "waiting": 0,
+      "running_ratio": 0.62,
+      "kv_usage": 0.531,
+      "preemption_total": 0,
+      "batched_tokens": 1068
+    },
+    {
+      "t": 11.0,
+      "running": 41,
+      "waiting": 0,
+      "running_ratio": 0.64,
+      "kv_usage": 0.542,
+      "preemption_total": 0,
+      "batched_tokens": 1076
+    },
+    {
+      "t": 11.5,
+      "running": 42,
+      "waiting": 0,
+      "running_ratio": 0.66,
+      "kv_usage": 0.553,
+      "preemption_total": 0,
+      "batched_tokens": 1084
+    },
+    {
+      "t": 12.0,
+      "running": 44,
+      "waiting": 0,
+      "running_ratio": 0.68,
+      "kv_usage": 0.564,
+      "preemption_total": 0,
+      "batched_tokens": 1092
+    },
+    {
+      "t": 12.5,
+      "running": 45,
+      "waiting": 0,
+      "running_ratio": 0.7,
+      "kv_usage": 0.575,
+      "preemption_total": 0,
+      "batched_tokens": 1100
+    },
+    {
+      "t": 13.0,
+      "running": 46,
+      "waiting": 0,
+      "running_ratio": 0.72,
+      "kv_usage": 0.586,
+      "preemption_total": 0,
+      "batched_tokens": 1108
+    },
+    {
+      "t": 13.5,
+      "running": 47,
+      "waiting": 0,
+      "running_ratio": 0.74,
+      "kv_usage": 0.597,
+      "preemption_total": 0,
+      "batched_tokens": 1116
+    },
+    {
+      "t": 14.0,
+      "running": 49,
+      "waiting": 0,
+      "running_ratio": 0.76,
+      "kv_usage": 0.608,
+      "preemption_total": 0,
+      "batched_tokens": 1124
+    },
+    {
+      "t": 14.5,
+      "running": 50,
+      "waiting": 0,
+      "running_ratio": 0.78,
+      "kv_usage": 0.619,
+      "preemption_total": 0,
+      "batched_tokens": 1132
+    },
+    {
+      "t": 15.0,
+      "running": 61,
+      "waiting": 0,
+      "running_ratio": 0.96,
+      "kv_usage": 0.63,
+      "preemption_total": 0,
+      "batched_tokens": 1140
+    },
+    {
+      "t": 15.5,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.962,
+      "kv_usage": 0.6335,
+      "preemption_total": 0,
+      "batched_tokens": 1143
+    },
+    {
+      "t": 16.0,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.964,
+      "kv_usage": 0.637,
+      "preemption_total": 0,
+      "batched_tokens": 1146
+    },
+    {
+      "t": 16.5,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.966,
+      "kv_usage": 0.6405,
+      "preemption_total": 0,
+      "batched_tokens": 1149
+    },
+    {
+      "t": 17.0,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.968,
+      "kv_usage": 0.644,
+      "preemption_total": 0,
+      "batched_tokens": 1152
+    },
+    {
+      "t": 17.5,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.97,
+      "kv_usage": 0.6475,
+      "preemption_total": 0,
+      "batched_tokens": 1155
+    },
+    {
+      "t": 18.0,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.972,
+      "kv_usage": 0.651,
+      "preemption_total": 0,
+      "batched_tokens": 1158
+    },
+    {
+      "t": 18.5,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.974,
+      "kv_usage": 0.6545,
+      "preemption_total": 0,
+      "batched_tokens": 1161
+    },
+    {
+      "t": 19.0,
+      "running": 62,
+      "waiting": 0,
+      "running_ratio": 0.976,
+      "kv_usage": 0.658,
+      "preemption_total": 0,
+      "batched_tokens": 1164
+    },
+    {
+      "t": 19.5,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.978,
+      "kv_usage": 0.6615,
+      "preemption_total": 0,
+      "batched_tokens": 1167
+    },
+    {
+      "t": 20.0,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.98,
+      "kv_usage": 0.665,
+      "preemption_total": 0,
+      "batched_tokens": 1170
+    },
+    {
+      "t": 20.5,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.982,
+      "kv_usage": 0.6685,
+      "preemption_total": 0,
+      "batched_tokens": 1173
+    },
+    {
+      "t": 21.0,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.984,
+      "kv_usage": 0.672,
+      "preemption_total": 0,
+      "batched_tokens": 1176
+    },
+    {
+      "t": 21.5,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.986,
+      "kv_usage": 0.6755,
+      "preemption_total": 0,
+      "batched_tokens": 1179
+    },
+    {
+      "t": 22.0,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.988,
+      "kv_usage": 0.679,
+      "preemption_total": 0,
+      "batched_tokens": 1182
+    },
+    {
+      "t": 22.5,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.99,
+      "kv_usage": 0.6825,
+      "preemption_total": 0,
+      "batched_tokens": 1185
+    },
+    {
+      "t": 23.0,
+      "running": 63,
+      "waiting": 0,
+      "running_ratio": 0.992,
+      "kv_usage": 0.686,
+      "preemption_total": 0,
+      "batched_tokens": 1188
+    },
+    {
+      "t": 23.5,
+      "running": 64,
+      "waiting": 0,
+      "running_ratio": 0.994,
+      "kv_usage": 0.6895,
+      "preemption_total": 0,
+      "batched_tokens": 1191
+    },
+    {
+      "t": 24.0,
+      "running": 64,
+      "waiting": 0,
+      "running_ratio": 0.996,
+      "kv_usage": 0.693,
+      "preemption_total": 0,
+      "batched_tokens": 1194
+    },
+    {
+      "t": 24.5,
+      "running": 64,
+      "waiting": 0,
+      "running_ratio": 0.998,
+      "kv_usage": 0.6965,
+      "preemption_total": 0,
+      "batched_tokens": 1197
+    },
+    {
+      "t": 25.0,
+      "running": 64,
+      "waiting": 1,
+      "running_ratio": 1.0,
+      "kv_usage": 0.7,
+      "preemption_total": 0,
+      "batched_tokens": 1200
+    },
+    {
+      "t": 25.5,
+      "running": 64,
+      "waiting": 1,
+      "running_ratio": 1.0,
+      "kv_usage": 0.706,
+      "preemption_total": 0,
+      "batched_tokens": 1202
+    },
+    {
+      "t": 26.0,
+      "running": 64,
+      "waiting": 1,
+      "running_ratio": 1.0,
+      "kv_usage": 0.712,
+      "preemption_total": 0,
+      "batched_tokens": 1204
+    },
+    {
+      "t": 26.5,
+      "running": 64,
+      "waiting": 1,
+      "running_ratio": 1.0,
+      "kv_usage": 0.718,
+      "preemption_total": 0,
+      "batched_tokens": 1206
+    },
+    {
+      "t": 27.0,
+      "running": 64,
+      "waiting": 2,
+      "running_ratio": 1.0,
+      "kv_usage": 0.724,
+      "preemption_total": 0,
+      "batched_tokens": 1208
+    },
+    {
+      "t": 27.5,
+      "running": 64,
+      "waiting": 2,
+      "running_ratio": 1.0,
+      "kv_usage": 0.73,
+      "preemption_total": 0,
+      "batched_tokens": 1210
+    },
+    {
+      "t": 28.0,
+      "running": 64,
+      "waiting": 2,
+      "running_ratio": 1.0,
+      "kv_usage": 0.736,
+      "preemption_total": 0,
+      "batched_tokens": 1212
+    },
+    {
+      "t": 28.5,
+      "running": 64,
+      "waiting": 2,
+      "running_ratio": 1.0,
+      "kv_usage": 0.742,
+      "preemption_total": 0,
+      "batched_tokens": 1214
+    },
+    {
+      "t": 29.0,
+      "running": 64,
+      "waiting": 3,
+      "running_ratio": 1.0,
+      "kv_usage": 0.748,
+      "preemption_total": 0,
+      "batched_tokens": 1216
+    },
+    {
+      "t": 29.5,
+      "running": 64,
+      "waiting": 3,
+      "running_ratio": 1.0,
+      "kv_usage": 0.754,
+      "preemption_total": 0,
+      "batched_tokens": 1218
+    },
+    {
+      "t": 30.0,
+      "running": 64,
+      "waiting": 3,
+      "running_ratio": 1.0,
+      "kv_usage": 0.76,
+      "preemption_total": 0,
+      "batched_tokens": 1220
+    },
+    {
+      "t": 30.5,
+      "running": 64,
+      "waiting": 3,
+      "running_ratio": 1.0,
+      "kv_usage": 0.766,
+      "preemption_total": 0,
+      "batched_tokens": 1222
+    },
+    {
+      "t": 31.0,
+      "running": 64,
+      "waiting": 4,
+      "running_ratio": 1.0,
+      "kv_usage": 0.772,
+      "preemption_total": 0,
+      "batched_tokens": 1224
+    },
+    {
+      "t": 31.5,
+      "running": 64,
+      "waiting": 4,
+      "running_ratio": 1.0,
+      "kv_usage": 0.778,
+      "preemption_total": 0,
+      "batched_tokens": 1226
+    },
+    {
+      "t": 32.0,
+      "running": 64,
+      "waiting": 4,
+      "running_ratio": 1.0,
+      "kv_usage": 0.784,
+      "preemption_total": 0,
+      "batched_tokens": 1228
+    },
+    {
+      "t": 32.5,
+      "running": 64,
+      "waiting": 4,
+      "running_ratio": 1.0,
+      "kv_usage": 0.79,
+      "preemption_total": 0,
+      "batched_tokens": 1230
+    },
+    {
+      "t": 33.0,
+      "running": 64,
+      "waiting": 5,
+      "running_ratio": 1.0,
+      "kv_usage": 0.796,
+      "preemption_total": 0,
+      "batched_tokens": 1232
+    },
+    {
+      "t": 33.5,
+      "running": 64,
+      "waiting": 5,
+      "running_ratio": 1.0,
+      "kv_usage": 0.802,
+      "preemption_total": 0,
+      "batched_tokens": 1234
+    },
+    {
+      "t": 34.0,
+      "running": 64,
+      "waiting": 5,
+      "running_ratio": 1.0,
+      "kv_usage": 0.808,
+      "preemption_total": 0,
+      "batched_tokens": 1236
+    },
+    {
+      "t": 34.5,
+      "running": 64,
+      "waiting": 5,
+      "running_ratio": 1.0,
+      "kv_usage": 0.814,
+      "preemption_total": 0,
+      "batched_tokens": 1238
+    },
+    {
+      "t": 35.0,
+      "running": 64,
+      "waiting": 6,
+      "running_ratio": 1.0,
+      "kv_usage": 0.82,
+      "preemption_total": 0,
+      "batched_tokens": 1240
+    },
+    {
+      "t": 35.5,
+      "running": 64,
+      "waiting": 6,
+      "running_ratio": 1.0,
+      "kv_usage": 0.826,
+      "preemption_total": 0,
+      "batched_tokens": 1242
+    },
+    {
+      "t": 36.0,
+      "running": 64,
+      "waiting": 6,
+      "running_ratio": 1.0,
+      "kv_usage": 0.832,
+      "preemption_total": 0,
+      "batched_tokens": 1244
+    },
+    {
+      "t": 36.5,
+      "running": 64,
+      "waiting": 6,
+      "running_ratio": 1.0,
+      "kv_usage": 0.838,
+      "preemption_total": 0,
+      "batched_tokens": 1246
+    },
+    {
+      "t": 37.0,
+      "running": 64,
+      "waiting": 7,
+      "running_ratio": 1.0,
+      "kv_usage": 0.844,
+      "preemption_total": 0,
+      "batched_tokens": 1248
+    },
+    {
+      "t": 37.5,
+      "running": 64,
+      "waiting": 7,
+      "running_ratio": 1.0,
+      "kv_usage": 0.85,
+      "preemption_total": 0,
+      "batched_tokens": 1250
+    },
+    {
+      "t": 38.0,
+      "running": 64,
+      "waiting": 7,
+      "running_ratio": 1.0,
+      "kv_usage": 0.856,
+      "preemption_total": 0,
+      "batched_tokens": 1252
+    },
+    {
+      "t": 38.5,
+      "running": 64,
+      "waiting": 7,
+      "running_ratio": 1.0,
+      "kv_usage": 0.862,
+      "preemption_total": 0,
+      "batched_tokens": 1254
+    },
+    {
+      "t": 39.0,
+      "running": 64,
+      "waiting": 8,
+      "running_ratio": 1.0,
+      "kv_usage": 0.868,
+      "preemption_total": 0,
+      "batched_tokens": 1256
+    },
+    {
+      "t": 39.5,
+      "running": 64,
+      "waiting": 8,
+      "running_ratio": 1.0,
+      "kv_usage": 0.874,
+      "preemption_total": 0,
+      "batched_tokens": 1258
+    },
+    {
+      "t": 40.0,
+      "running": 64,
+      "waiting": 8,
+      "running_ratio": 1.0,
+      "kv_usage": 0.88,
+      "preemption_total": 2,
+      "batched_tokens": 1240
+    },
+    {
+      "t": 40.5,
+      "running": 64,
+      "waiting": 8,
+      "running_ratio": 1.0,
+      "kv_usage": 0.883,
+      "preemption_total": 2,
+      "batched_tokens": 1240
+    },
+    {
+      "t": 41.0,
+      "running": 64,
+      "waiting": 9,
+      "running_ratio": 1.0,
+      "kv_usage": 0.886,
+      "preemption_total": 2,
+      "batched_tokens": 1240
+    },
+    {
+      "t": 41.5,
+      "running": 64,
+      "waiting": 9,
+      "running_ratio": 1.0,
+      "kv_usage": 0.889,
+      "preemption_total": 2,
+      "batched_tokens": 1240
+    },
+    {
+      "t": 42.0,
+      "running": 64,
+      "waiting": 10,
+      "running_ratio": 1.0,
+      "kv_usage": 0.892,
+      "preemption_total": 2,
+      "batched_tokens": 1237
+    },
+    {
+      "t": 42.5,
+      "running": 64,
+      "waiting": 10,
+      "running_ratio": 1.0,
+      "kv_usage": 0.895,
+      "preemption_total": 4,
+      "batched_tokens": 1237
+    },
+    {
+      "t": 43.0,
+      "running": 64,
+      "waiting": 11,
+      "running_ratio": 1.0,
+      "kv_usage": 0.898,
+      "preemption_total": 4,
+      "batched_tokens": 1237
+    },
+    {
+      "t": 43.5,
+      "running": 64,
+      "waiting": 11,
+      "running_ratio": 1.0,
+      "kv_usage": 0.901,
+      "preemption_total": 4,
+      "batched_tokens": 1237
+    },
+    {
+      "t": 44.0,
+      "running": 64,
+      "waiting": 12,
+      "running_ratio": 1.0,
+      "kv_usage": 0.904,
+      "preemption_total": 4,
+      "batched_tokens": 1234
+    },
+    {
+      "t": 44.5,
+      "running": 64,
+      "waiting": 12,
+      "running_ratio": 1.0,
+      "kv_usage": 0.907,
+      "preemption_total": 4,
+      "batched_tokens": 1234
+    },
+    {
+      "t": 45.0,
+      "running": 64,
+      "waiting": 13,
+      "running_ratio": 1.0,
+      "kv_usage": 0.91,
+      "preemption_total": 6,
+      "batched_tokens": 1234
+    },
+    {
+      "t": 45.5,
+      "running": 64,
+      "waiting": 13,
+      "running_ratio": 1.0,
+      "kv_usage": 0.913,
+      "preemption_total": 6,
+      "batched_tokens": 1234
+    },
+    {
+      "t": 46.0,
+      "running": 64,
+      "waiting": 14,
+      "running_ratio": 1.0,
+      "kv_usage": 0.916,
+      "preemption_total": 6,
+      "batched_tokens": 1231
+    },
+    {
+      "t": 46.5,
+      "running": 64,
+      "waiting": 14,
+      "running_ratio": 1.0,
+      "kv_usage": 0.919,
+      "preemption_total": 6,
+      "batched_tokens": 1231
+    },
+    {
+      "t": 47.0,
+      "running": 64,
+      "waiting": 15,
+      "running_ratio": 1.0,
+      "kv_usage": 0.922,
+      "preemption_total": 6,
+      "batched_tokens": 1231
+    },
+    {
+      "t": 47.5,
+      "running": 64,
+      "waiting": 15,
+      "running_ratio": 1.0,
+      "kv_usage": 0.925,
+      "preemption_total": 8,
+      "batched_tokens": 1231
+    },
+    {
+      "t": 48.0,
+      "running": 64,
+      "waiting": 16,
+      "running_ratio": 1.0,
+      "kv_usage": 0.928,
+      "preemption_total": 8,
+      "batched_tokens": 1228
+    },
+    {
+      "t": 48.5,
+      "running": 64,
+      "waiting": 16,
+      "running_ratio": 1.0,
+      "kv_usage": 0.931,
+      "preemption_total": 8,
+      "batched_tokens": 1228
+    },
+    {
+      "t": 49.0,
+      "running": 64,
+      "waiting": 17,
+      "running_ratio": 1.0,
+      "kv_usage": 0.934,
+      "preemption_total": 8,
+      "batched_tokens": 1228
+    },
+    {
+      "t": 49.5,
+      "running": 64,
+      "waiting": 17,
+      "running_ratio": 1.0,
+      "kv_usage": 0.937,
+      "preemption_total": 8,
+      "batched_tokens": 1228
+    },
+    {
+      "t": 50.0,
+      "running": 64,
+      "waiting": 18,
+      "running_ratio": 1.0,
+      "kv_usage": 0.94,
+      "preemption_total": 10,
+      "batched_tokens": 1225
+    },
+    {
+      "t": 50.5,
+      "running": 64,
+      "waiting": 18,
+      "running_ratio": 1.0,
+      "kv_usage": 0.943,
+      "preemption_total": 10,
+      "batched_tokens": 1225
+    },
+    {
+      "t": 51.0,
+      "running": 64,
+      "waiting": 19,
+      "running_ratio": 1.0,
+      "kv_usage": 0.946,
+      "preemption_total": 10,
+      "batched_tokens": 1225
+    },
+    {
+      "t": 51.5,
+      "running": 64,
+      "waiting": 19,
+      "running_ratio": 1.0,
+      "kv_usage": 0.949,
+      "preemption_total": 10,
+      "batched_tokens": 1225
+    },
+    {
+      "t": 52.0,
+      "running": 64,
+      "waiting": 20,
+      "running_ratio": 1.0,
+      "kv_usage": 0.952,
+      "preemption_total": 10,
+      "batched_tokens": 1222
+    },
+    {
+      "t": 52.5,
+      "running": 64,
+      "waiting": 20,
+      "running_ratio": 1.0,
+      "kv_usage": 0.955,
+      "preemption_total": 12,
+      "batched_tokens": 1222
+    },
+    {
+      "t": 53.0,
+      "running": 64,
+      "waiting": 21,
+      "running_ratio": 1.0,
+      "kv_usage": 0.958,
+      "preemption_total": 12,
+      "batched_tokens": 1222
+    },
+    {
+      "t": 53.5,
+      "running": 64,
+      "waiting": 21,
+      "running_ratio": 1.0,
+      "kv_usage": 0.961,
+      "preemption_total": 12,
+      "batched_tokens": 1222
+    },
+    {
+      "t": 54.0,
+      "running": 64,
+      "waiting": 22,
+      "running_ratio": 1.0,
+      "kv_usage": 0.964,
+      "preemption_total": 12,
+      "batched_tokens": 1219
+    },
+    {
+      "t": 54.5,
+      "running": 64,
+      "waiting": 22,
+      "running_ratio": 1.0,
+      "kv_usage": 0.967,
+      "preemption_total": 12,
+      "batched_tokens": 1219
+    },
+    {
+      "t": 55.0,
+      "running": 64,
+      "waiting": 23,
+      "running_ratio": 1.0,
+      "kv_usage": 0.97,
+      "preemption_total": 14,
+      "batched_tokens": 1219
+    },
+    {
+      "t": 55.5,
+      "running": 64,
+      "waiting": 23,
+      "running_ratio": 1.0,
+      "kv_usage": 0.973,
+      "preemption_total": 14,
+      "batched_tokens": 1219
+    },
+    {
+      "t": 56.0,
+      "running": 64,
+      "waiting": 24,
+      "running_ratio": 1.0,
+      "kv_usage": 0.976,
+      "preemption_total": 14,
+      "batched_tokens": 1216
+    },
+    {
+      "t": 56.5,
+      "running": 64,
+      "waiting": 24,
+      "running_ratio": 1.0,
+      "kv_usage": 0.979,
+      "preemption_total": 14,
+      "batched_tokens": 1216
+    },
+    {
+      "t": 57.0,
+      "running": 64,
+      "waiting": 25,
+      "running_ratio": 1.0,
+      "kv_usage": 0.98,
+      "preemption_total": 14,
+      "batched_tokens": 1216
+    },
+    {
+      "t": 57.5,
+      "running": 64,
+      "waiting": 25,
+      "running_ratio": 1.0,
+      "kv_usage": 0.98,
+      "preemption_total": 16,
+      "batched_tokens": 1216
+    },
+    {
+      "t": 58.0,
+      "running": 64,
+      "waiting": 26,
+      "running_ratio": 1.0,
+      "kv_usage": 0.98,
+      "preemption_total": 16,
+      "batched_tokens": 1213
+    },
+    {
+      "t": 58.5,
+      "running": 64,
+      "waiting": 26,
+      "running_ratio": 1.0,
+      "kv_usage": 0.98,
+      "preemption_total": 16,
+      "batched_tokens": 1213
+    },
+    {
+      "t": 59.0,
+      "running": 64,
+      "waiting": 27,
+      "running_ratio": 1.0,
+      "kv_usage": 0.98,
+      "preemption_total": 16,
+      "batched_tokens": 1213
+    },
+    {
+      "t": 59.5,
+      "running": 64,
+      "waiting": 27,
+      "running_ratio": 1.0,
+      "kv_usage": 0.98,
+      "preemption_total": 16,
+      "batched_tokens": 1213
+    }
+  ]
+}

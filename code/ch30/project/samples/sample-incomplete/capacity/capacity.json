@@ -1,0 +1,19 @@
+{
+  "_note": "合成设定。这不是真机项目，而是按第 30 章五项交付物、九块报告契约和八条自查构造的一份样例，用来演示 verify.py 的输出。",
+  "context_tokens": 1800,
+  "output_tokens": 200,
+  "instances": 2,
+  "floor_instances": 2,
+  "binding_constraint": "memory",
+  "min_instances": 2,
+  "max_instances": 4,
+  "peak_output_tps": 1320,
+  "per_card_output_tps": 742,
+  "headroom_share": 0.12,
+  "monthly_cost": 2400,
+  "_binding_note": "单卡显存小、检索拼进来的上下文长，并发受 KV 预算限制，是显存先满；所以上下文变长可以直接换算成卡数（第 29.7 节）。下限 2 张是挂一张时还有一张在服务。",
+  "scale_trigger_metric": "slot_occupancy",
+  "cold_start_s": 240,
+  "loop_lag_s": 360,
+  "_headroom_note": "刚好够 1320 ÷ 742 ≈ 1.78 张，加 12% 余量正好 2 张；再往上一档就要跳到 3 张，这个规模上余量是跳着走的。"
+}

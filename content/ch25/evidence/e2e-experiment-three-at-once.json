@@ -1,0 +1,155 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机实验。对应 25.9 案例二本身：准入、路由、批量三项一起改，端到端 21 秒涨到 24 秒。用来看记分卡怎么判否决项越线。",
+  "variant": "admission+affinity+batch",
+  "expectation": {
+    "written_at": "2026-09-20T09:00:00+08:00",
+    "metric": "P95 任务完成时间",
+    "baseline_ms": 21000,
+    "expected_ms": 16500,
+    "magnitude_basis": "25.2 那张表里排队占 31%，准入把排队压到 10% 以内，按占比折算端到端应降到 16.5 秒上下",
+    "null_criterion": "端到端改善不足 5% 即判为不成立",
+    "changed": "准入 + 前缀亲和路由 + 批量，三项同时"
+  },
+  "layer_breakdown": {
+    "collected_under_load": "peak",
+    "load_note": "在 45 QPS 峰值负载下采集，不是空闲状态",
+    "shares": {
+      "orchestration": 0.208,
+      "retrieval": 0.188,
+      "model_serving": 0.517,
+      "tools": 0.087
+    }
+  },
+  "budget_check": {
+    "orchestration": {
+      "budget_ms": 500,
+      "actual_ms": 5000
+    },
+    "retrieval": {
+      "budget_ms": 1200,
+      "actual_ms": 4500
+    },
+    "model_serving": {
+      "budget_ms": 5000,
+      "actual_ms": 12400
+    },
+    "tools": {
+      "budget_ms": 1000,
+      "actual_ms": 2100
+    }
+  },
+  "scorecard": {
+    "end_to_end": {
+      "label": "端到端",
+      "improved": false,
+      "p95_task_ms": 24000,
+      "task_success_rate": {
+        "before": 0.962,
+        "after": 0.918,
+        "worsened": true
+      }
+    },
+    "quality": {
+      "label": "质量",
+      "improved": false,
+      "quality": {
+        "before": 0.874,
+        "after": 0.869,
+        "floor": 0.86,
+        "worsened": false
+      },
+      "structured_output_pass_rate": 0.991,
+      "note": "质量没越线，所以这一轮判失败靠的是另外两项否决项"
+    },
+    "abandonment": {
+      "label": "用户放弃",
+      "improved": false,
+      "abandon_rate": 0.093,
+      "abandon_mean_step": 6.1
+    },
+    "orchestration": {
+      "label": "编排",
+      "improved": false,
+      "steps_p50": 12,
+      "steps_p95": 34,
+      "cumulative_input_tokens": 92000,
+      "note": "步数没变，但重试让每步的编排开销涨到约 147 ms"
+    },
+    "retrieval": {
+      "label": "检索",
+      "improved": true,
+      "rerank_ms": 620,
+      "rerank_candidates": 200,
+      "cold_warm_ratio": 1.9,
+      "cache_hit_rates": {
+        "retrieval": 0.0,
+        "prefix": 0.58,
+        "answer": 0.0
+      },
+      "note": "前缀亲和把命中率从轮询的 0.4 拉到 0.58，这是三项里唯一按预期生效的一项"
+    },
+    "model_serving": {
+      "label": "模型服务",
+      "improved": false,
+      "queue_ms": 1290,
+      "compute_ms": 480,
+      "calls_per_task": 7,
+      "p95_itl_ms": 148,
+      "goodput_qps": 7.9
+    },
+    "capacity": {
+      "label": "容量",
+      "improved": false,
+      "running_ratio": 0.99,
+      "preemption_count": {
+        "before": 34,
+        "after": 91,
+        "worsened": true
+      },
+      "kv_usage": 0.95
+    },
+    "governance": {
+      "label": "治理",
+      "improved": true,
+      "reject_rate": 0.11,
+      "timeout_p99_ms": 3600,
+      "cancel_effective_rate": 0.97
+    },
+    "routing": {
+      "label": "路由",
+      "improved": false,
+      "load_skew": 0.61,
+      "per_instance_hit_rate": [
+        0.63,
+        0.55,
+        0.52
+      ],
+      "worst_instance_p95_ms": 29400
+    },
+    "cost": {
+      "label": "成本",
+      "improved": false,
+      "token_cost_per_task": 0.184,
+      "tasks_per_gpu_hour": 27.4
+    }
+  },
+  "cross_layer": [
+    "准入拒绝触发编排层重试，实际负载上升约 1.4 倍（第 21 章那个放大器）",
+    "前缀亲和让热点实例的拒绝率更高，重试更集中，不均衡度升到 0.61",
+    "两者叠加使抢占计数从 34 升到 91，每次调用的排队反而从约 930 ms 涨到约 1290 ms"
+  ],
+  "verdict": {
+    "label": "低于预期",
+    "passed": false,
+    "kept": false,
+    "reading": "端到端反而变差，三项改动必须拆开重做"
+  },
+  "boundary": {
+    "model": "Qwen2.5-0.5B-Instruct，FP16",
+    "load": "45 QPS 峰值，峰谷比 11.25，长度分布见 workload 描述",
+    "hardware": "3 × 单卡实例",
+    "config": "vLLM 参数见附带的 config 快照",
+    "chain_structure": "编排层 → 改写 → 检索 → 重排 → 主模型（多步），步数 P95 = 34，其中约 7 次模型调用"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "validation_environment": {
+    "host": "autodl-container-s268v0c3ns-6954074f",
+    "python_version": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 3080 Ti",
+    "driver_version": "595.71.05",
+    "vllm_version": "0.10.2"
+  },
+  "started_at": "2026-10-15T11:54:26+0800",
+  "base_url": "http://127.0.0.1:8000/v1",
+  "model": "./Qwen2.5-0.5B-Instruct",
+  "prompt": "请用三句话介绍 LLM 在线推理。",
+  "prompt_repeat": 1,
+  "max_tokens": 256,
+  "concurrency": 1,
+  "summary": {
+    "requests": 1,
+    "successes": 1,
+    "failures": 0,
+    "time_to_first_content_chunk_avg_ms": 454.28,
+    "time_to_first_content_chunk_p95_ms": 454.28,
+    "chunk_interval_avg_ms": 4.63,
+    "total_latency_avg_ms": 1136.19,
+    "failures_detail": []
+  },
+  "gpu_before": {
+    "gpus": [
+      {
+        "name": "NVIDIA GeForce RTX 3080 Ti",
+        "gpu_util_pct": 0.0,
+        "memory_used_mb": 7934.0,
+        "memory_total_mb": 12288.0
+      }
+    ]
+  },
+  "gpu_after": {
+    "gpus": [
+      {
+        "name": "NVIDIA GeForce RTX 3080 Ti",
+        "gpu_util_pct": 38.0,
+        "memory_used_mb": 7934.0,
+        "memory_total_mb": 12288.0
+      }
+    ]
+  },
+  "results": [
+    {
+      "success": true,
+      "prompt_tokens": 40,
+      "output_tokens": 148,
+      "stream_chunks": 147,
+      "raw_content_events": 150,
+      "empty_content_events": 3,
+      "finish_reason": "stop",
+      "output_characters": 275,
+      "time_to_first_content_chunk_ms": 454.28,
+      "chunk_interval_avg_ms": 4.63,
+      "chunk_interval_p50_ms": 4.47,
+      "chunk_interval_p95_ms": 5.38,
+      "total_latency_ms": 1136.19,
+      "request_output_rate_tokens_per_second": 130.26
+    }
+  ],
+  "_note": "第二台机器上的真机记录，和 content/ch01/evidence/gx10-streaming-client-report.json 是同一句 prompt、同一个模型的两次独立运行，机器和 vLLM 版本都不同。1.9 用它解释分片与 token 的计数口径，3.2 用它解释 prompt_tokens 的构成。注意 time_to_first_content_chunk 含首次请求的冷启动开销，不能和 GX10 那份直接比，也不能当作 TTFT 的代表值（第 7 章 Warmup）。"
+}

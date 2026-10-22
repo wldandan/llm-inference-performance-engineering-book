@@ -1,0 +1,20 @@
+{
+  "_note": "合成设定。这不是真机项目，而是按第 30 章五项交付物、九块报告契约和八条自查构造的一份样例，用来演示 verify.py 的输出。",
+  "request_id_propagated": true,
+  "drilldown_supported": true,
+  "collection_overhead_pct": 1.2,
+  "available_metrics": [
+    "ttft_p95",
+    "itl_p95",
+    "itl_distribution",
+    "running_ratio",
+    "queue_length",
+    "preemption_count",
+    "kv_usage",
+    "error_rate"
+  ],
+  "unavailable_stages": [
+    "client_queue",
+    "tokenizer_internal"
+  ]
+}

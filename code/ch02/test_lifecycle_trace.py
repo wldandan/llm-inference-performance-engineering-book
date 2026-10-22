@@ -32,9 +32,9 @@ class LifecycleTraceTest(unittest.TestCase):
         self.assertEqual(
             result["durations_ms"],
             {
-                "admission": 2,
+                "ingress": 2,
                 "queue": 10,
-                "prefill": 30,
+                "scheduled_to_first_token": 30,
                 "decode": 50,
                 "response_tail": 5,
                 "end_to_end": 97,
@@ -53,9 +53,9 @@ class LifecycleTraceTest(unittest.TestCase):
         result = lifecycle_trace.analyze_request(events)
 
         self.assertEqual(result["terminal_state"], "cancelled")
-        self.assertEqual(result["durations_ms"]["admission"], 2)
+        self.assertEqual(result["durations_ms"]["ingress"], 2)
         self.assertEqual(result["durations_ms"]["queue"], 13)
-        self.assertIsNone(result["durations_ms"]["prefill"])
+        self.assertIsNone(result["durations_ms"]["scheduled_to_first_token"])
         self.assertEqual(result["durations_ms"]["end_to_end"], 24)
 
     def test_out_of_order_timestamps_are_rejected(self):

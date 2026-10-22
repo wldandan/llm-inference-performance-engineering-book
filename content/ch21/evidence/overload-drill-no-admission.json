@@ -1,0 +1,67 @@
+{
+  "synthetic": true,
+  "url": "http://localhost:8000",
+  "capacity_qps": 12.0,
+  "ramp": [
+    0.5,
+    1,
+    1.5,
+    2,
+    3
+  ],
+  "slo_ttft_ms": 1500.0,
+  "slo_itl_ms": 80.0,
+  "_note": "合成设定，不是真机演练。没有准入的那一版，用来演示 21.1 那个 A 的形状：全部接受，最终全员失败。用在自己的服务上时，用 run 采一份真数据替换。",
+  "variant": "no-admission",
+  "steps": [
+    {
+      "offered_qps": 6.0,
+      "accepted_qps": 6.0,
+      "rejected_qps": 0.0,
+      "goodput": 5.98,
+      "p95_ttft": 380.0,
+      "error_breakdown": {}
+    },
+    {
+      "offered_qps": 12.0,
+      "accepted_qps": 12.0,
+      "rejected_qps": 0.0,
+      "goodput": 11.5,
+      "p95_ttft": 1180.0,
+      "error_breakdown": {
+        "timeout": 6
+      }
+    },
+    {
+      "offered_qps": 18.0,
+      "accepted_qps": 18.0,
+      "rejected_qps": 0.0,
+      "goodput": 10.3,
+      "p95_ttft": 2900.0,
+      "error_breakdown": {
+        "timeout": 138
+      }
+    },
+    {
+      "offered_qps": 24.0,
+      "accepted_qps": 24.0,
+      "rejected_qps": 0.0,
+      "goodput": 8.6,
+      "p95_ttft": 4400.0,
+      "error_breakdown": {
+        "timeout": 462
+      }
+    },
+    {
+      "offered_qps": 36.0,
+      "accepted_qps": 36.0,
+      "rejected_qps": 0.0,
+      "goodput": 2.1,
+      "p95_ttft": 9000.0,
+      "error_breakdown": {
+        "timeout": 993,
+        "connection_failed": 24
+      }
+    }
+  ]
+}

@@ -114,18 +114,41 @@ def _distribution(values: list[float]) -> dict[str, float | int | None]:
     }
 
 
+UNMEASURED_BUDGET_SEGMENTS = (
+    {
+        "segment": "first_token -> first_chunk_received",
+        "belongs_to": "ttft",
+        "why_unavailable": "no server-side event pair in this sample; see chapter 2 section 7",
+        "consumes": "part of the slack that may be spent before the first token",
+    },
+)
+
+
 def build_latency_budget(
     *,
     ttft_slo_ms: float,
     e2e_slo_ms: float,
-    client_gateway_ms: float,
+    client_to_gateway_ms: float,
+    ingress_ms: float,
     queue_ms: float,
     scheduled_to_first_token_ms: float,
     decode_streaming_ms: float,
     response_tail_ms: float,
 ) -> dict[str, object]:
+    """Split an SLO into allocated per-stage budgets plus one shared slack pool.
+
+    There is exactly one pool of slack and it belongs to the whole request:
+    ``unallocated_total_ms = e2e_slo - e2e_allocated``. Two constraints limit how
+    much of that pool may be spent before the first token, and the tighter one
+    wins, so the cap is ``min(ttft_slo - ttft_allocated, unallocated_total_ms)``.
+    It is a ceiling, not an amount that has to be spent: whatever is not used
+    before the first token is still available afterwards, which is why the
+    remainder is reported as a lower bound. Adding every row of a budget table
+    together is exactly the mistake this function exists to prevent.
+    """
     values = {
-        "client_gateway_ms": client_gateway_ms,
+        "client_to_gateway_ms": client_to_gateway_ms,
+        "ingress_ms": ingress_ms,
         "queue_ms": queue_ms,
         "scheduled_to_first_token_ms": scheduled_to_first_token_ms,
         "decode_streaming_ms": decode_streaming_ms,
@@ -133,20 +156,34 @@ def build_latency_budget(
     }
     if ttft_slo_ms <= 0 or e2e_slo_ms <= 0 or any(value < 0 for value in values.values()):
         raise ValueError("SLO and latency budget values must be non-negative, with positive SLOs")
-    ttft_allocated = client_gateway_ms + queue_ms + scheduled_to_first_token_ms
+    ttft_allocated = (
+        client_to_gateway_ms + ingress_ms + queue_ms + scheduled_to_first_token_ms
+    )
     if ttft_allocated > ttft_slo_ms:
         raise ValueError("TTFT budget exceeds TTFT SLO")
     e2e_allocated = ttft_allocated + decode_streaming_ms + response_tail_ms
     if e2e_allocated > e2e_slo_ms:
         raise ValueError("E2E budget exceeds E2E SLO")
+    slack_total = e2e_slo_ms - e2e_allocated
+    slack_before_first_token = min(ttft_slo_ms - ttft_allocated, slack_total)
+    slack_after_first_token = slack_total - slack_before_first_token
     return {
         "components_ms": values,
         "ttft_slo_ms": ttft_slo_ms,
         "ttft_allocated_ms": ttft_allocated,
-        "ttft_unallocated_ms": ttft_slo_ms - ttft_allocated,
         "e2e_slo_ms": e2e_slo_ms,
         "e2e_allocated_ms": e2e_allocated,
-        "e2e_unallocated_ms": e2e_slo_ms - e2e_allocated,
+        "unallocated_total_ms": slack_total,
+        "unallocated_before_first_token_ms": slack_before_first_token,
+        "unallocated_after_first_token_min_ms": slack_after_first_token,
+        "slack_is_not_additive": (
+            "unallocated_before_first_token_ms is a ceiling carved out of "
+            "unallocated_total_ms, not a separate row; allocated stages plus "
+            "unallocated_total_ms equals the E2E SLO, and whatever the ceiling "
+            "leaves unused before the first token is still available after it, so "
+            "unallocated_after_first_token_min_ms is a lower bound"
+        ),
+        "unmeasured_segments": [dict(item) for item in UNMEASURED_BUDGET_SEGMENTS],
     }
 
 
@@ -254,13 +291,26 @@ def build_report(
         },
         "cost": {
             "total_cost_usd": total_cost,
-            "usd_per_million_output_tokens": (
+            "usd_per_million_successful_output_tokens": (
                 total_cost / successful_output_tokens * 1_000_000
                 if successful_output_tokens
                 else None
             ),
             "usd_per_successful_request": (
                 total_cost / len(successful) if successful else None
+            ),
+            "usd_per_good_request": (
+                total_cost / good_requests if good_requests else None
+            ),
+            "denominator_note": (
+                "usd_per_million_successful_output_tokens divides by successful output "
+                "tokens only, which is why the field name says so (5.7: a cost number "
+                "without a named denominator is not comparable). "
+                "usd_per_good_request uses the same definition as goodput: success AND "
+                "quality_pass AND TTFT/E2E within SLO. It is the higher number because "
+                "requests that ran but did not qualify still consumed resources. "
+                "Tightening an SLO lowers goodput and therefore raises this cost without "
+                "the service itself having changed."
             ),
         },
         "per_request": per_request,
@@ -288,7 +338,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--ttft-slo-ms", type=float, default=250)
     parser.add_argument("--e2e-slo-ms", type=float, default=800)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--client-gateway-budget-ms", type=float, default=40)
+    parser.add_argument("--client-to-gateway-budget-ms", type=float, default=20)
+    parser.add_argument("--ingress-budget-ms", type=float, default=20)
     parser.add_argument("--queue-budget-ms", type=float, default=60)
     parser.add_argument("--scheduled-to-first-token-budget-ms", type=float, default=130)
     parser.add_argument("--decode-streaming-budget-ms", type=float, default=500)
@@ -306,7 +357,8 @@ def main() -> int:
         latency_budget=build_latency_budget(
             ttft_slo_ms=args.ttft_slo_ms,
             e2e_slo_ms=args.e2e_slo_ms,
-            client_gateway_ms=args.client_gateway_budget_ms,
+            client_to_gateway_ms=args.client_to_gateway_budget_ms,
+            ingress_ms=args.ingress_budget_ms,
             queue_ms=args.queue_budget_ms,
             scheduled_to_first_token_ms=args.scheduled_to_first_token_budget_ms,
             decode_streaming_ms=args.decode_streaming_budget_ms,

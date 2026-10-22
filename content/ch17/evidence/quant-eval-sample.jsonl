@@ -1,0 +1,20 @@
+{"id": "q001", "kind": "short_qa", "prompt": "北京到上海的高铁最快多久？", "_note": "合成样例，不是真机数据。20 条的比例刻意做成短问答偏多，与真实评测集一样"}
+{"id": "q002", "kind": "short_qa", "prompt": "把这句话翻成英文：今天天气不错。"}
+{"id": "q003", "kind": "short_qa", "prompt": "3 的 7 次方是多少？"}
+{"id": "q004", "kind": "short_qa", "prompt": "TTFT 和 TPOT 分别指什么？"}
+{"id": "q005", "kind": "short_qa", "prompt": "GQA 相比 MHA 省下的是什么？"}
+{"id": "q006", "kind": "short_qa", "prompt": "一句话说明什么是抢占。"}
+{"id": "q007", "kind": "short_qa", "prompt": "PagedAttention 借的是操作系统里的哪个机制？"}
+{"id": "q008", "kind": "short_qa", "prompt": "Goodput 和 TPS 的区别是什么？"}
+{"id": "q009", "kind": "short_qa", "prompt": "把 128 KiB 换算成字节。"}
+{"id": "q010", "kind": "short_qa", "prompt": "列出三个 Decode 侧的优化手段。"}
+{"id": "q011", "kind": "long_answer", "prompt": "详细说明一次 Decode 步骤里 GPU 做了哪些事，要求 800 字以上。"}
+{"id": "q012", "kind": "long_answer", "prompt": "写一份 2000 字的容量规划方案，包含显存账、并发上限与压测计划。"}
+{"id": "q013", "kind": "long_answer", "prompt": "逐步推导为什么批量为 1 的 Decode 算术强度恒等于 1。"}
+{"id": "q014", "kind": "long_answer", "prompt": "写一份 1500 字的抢占排查手册，覆盖两种抢占策略的取舍。"}
+{"id": "q015", "kind": "structured_output", "prompt": "把下面这段日志转成 JSON，字段为 ts、level、msg、latency_ms。", "schema": {"ts": "string", "level": "string", "msg": "string", "latency_ms": "number"}}
+{"id": "q016", "kind": "structured_output", "prompt": "按给定 schema 输出函数调用参数，不要多余文字。", "schema": {"name": "string", "args": "object"}}
+{"id": "q017", "kind": "structured_output", "prompt": "输出一个含 5 行的 CSV，表头为 batch,tps,p95_itl。"}
+{"id": "q018", "kind": "domain_hard", "prompt": "这份心电报告里哪些指标超出参考范围？", "_note": "已知难例，覆盖线上的专业场景"}
+{"id": "q019", "kind": "domain_hard", "prompt": "这段合同条款里的违约责任条款有哪些例外情形？", "_note": "已知难例，覆盖线上的专业场景"}
+{"id": "q020", "kind": "domain_hard", "prompt": "这份财报附注里递延所得税资产的确认依据是什么？", "_note": "已知难例，覆盖线上的专业场景"}

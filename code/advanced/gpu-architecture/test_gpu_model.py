@@ -9,8 +9,8 @@ MODULE_PATH = Path(__file__).with_name("gpu_model.py")
 
 def load_gpu_model():
     if not MODULE_PATH.exists():
-        raise AssertionError("code/chapter05/gpu_model.py must exist")
-    spec = importlib.util.spec_from_file_location("chapter05_gpu_model", MODULE_PATH)
+        raise AssertionError("code/advanced/gpu-architecture/gpu_model.py must exist")
+    spec = importlib.util.spec_from_file_location("appendix_a_gpu_model", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)

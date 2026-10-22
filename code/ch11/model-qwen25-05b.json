@@ -1,0 +1,16 @@
+{
+  "_note": "全书共享的参考模型一配置（Part 3 开篇参考表）。第 11、12、13、14 章的 Demo 都读这一份文件，正文里所有与这个模型有关的数字都出自它。换模型只改这里，不要在正文里各改一遍。",
+  "name": "Qwen2.5-0.5B",
+  "revision": "配置取自公开的 config.json；真机实验请把实际 revision 填在这里",
+  "layers": 24,
+  "hidden_size": 896,
+  "num_attention_heads": 14,
+  "num_key_value_heads": 2,
+  "head_dim": 64,
+  "intermediate_size": 4864,
+  "vocab_size": 151936,
+  "tied_word_embeddings": true,
+  "dtype": "fp16",
+  "bytes_per_element": 2,
+  "context_window": 32768
+}

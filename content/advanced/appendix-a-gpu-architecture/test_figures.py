@@ -8,18 +8,18 @@ CHAPTER_DIR = Path(__file__).parent
 FIGURE_DIR = CHAPTER_DIR / "figures"
 SVG_NS = "http://www.w3.org/2000/svg"
 EXPECTED_FIGURES = {
-    "fig05-01_four_gpu_constraints.svg": "GPU 的四类工程约束",
-    "fig05-02_llm_work_to_gpu_resources.svg": "LLM 工作怎样落到 GPU 资源",
-    "fig05-03_memory_capacity_budget.svg": "显存容量预算",
-    "fig05-04_memory_bandwidth_path.svg": "显存带宽",
-    "fig05-05_compute_and_roofline.svg": "算力与 Roofline 直觉",
-    "fig05-06_kernel_launch_overhead.svg": "Kernel Launch Overhead",
-    "fig05-07_advanced_gpu_map.svg": "进阶硬件地图",
-    "fig05-08_demo_gpu_report.svg": "Demo 输出 GPU 约束报告",
+    "figA-01_four_gpu_constraints.svg": "GPU 的四类工程约束",
+    "figA-02_llm_work_to_gpu_resources.svg": "LLM 工作怎样落到 GPU 资源",
+    "figA-03_memory_capacity_budget.svg": "显存容量预算",
+    "figA-04_memory_bandwidth_path.svg": "显存带宽",
+    "figA-05_compute_and_roofline.svg": "算力与 Roofline 直觉",
+    "figA-06_kernel_launch_overhead.svg": "Kernel Launch Overhead",
+    "figA-07_advanced_gpu_map.svg": "进阶硬件地图",
+    "figA-08_demo_gpu_report.svg": "Demo 输出 GPU 约束报告",
 }
 
 
-class ChapterFiveFigureTests(unittest.TestCase):
+class AppendixAFigureTests(unittest.TestCase):
     def test_figure_set_matches_approved_storyboard(self):
         self.assertEqual(
             set(EXPECTED_FIGURES),
@@ -35,7 +35,7 @@ class ChapterFiveFigureTests(unittest.TestCase):
                 self.assertEqual(root.attrib.get("width"), "1280")
                 self.assertEqual(root.attrib.get("height"), "720")
                 self.assertEqual(root.attrib.get("viewBox"), "0 0 1280 720")
-                self.assertEqual(root.attrib.get("data-figure-system"), "chapter05-v2")
+                self.assertEqual(root.attrib.get("data-figure-system"), "appendix-a-v2")
                 self.assertIn("aria-labelledby", root.attrib)
 
                 title = root.find(f"{{{SVG_NS}}}title")
@@ -57,15 +57,16 @@ class ChapterFiveFigureTests(unittest.TestCase):
                 self.assertIn("来源段落", note_source)
                 self.assertIn("关键结论", note_source)
 
-    def test_chapter_links_eight_continuous_figures(self):
-        source = (CHAPTER_DIR / "chapter05.md").read_text(encoding="utf-8")
+    def test_appendix_links_eight_continuous_figures(self):
+        source = (CHAPTER_DIR / "appendix-a.md").read_text(encoding="utf-8")
         links = re.findall(r"!\[[^\]]*\]\((figures/[^)]+\.svg)\)", source)
         self.assertEqual(links, [f"figures/{name}" for name in EXPECTED_FIGURES])
-        self.assertEqual(re.findall(r"图5-(\d+)[：:]", source), [str(i) for i in range(1, 9)])
+        self.assertEqual(re.findall(r"图A-(\d+)[：:]", source), [str(i) for i in range(1, 9)])
         self.assertIn("四类约束", source)
-        self.assertIn("Bridge", source)
-        self.assertNotRegex(source, r"(?m)^##\s+5\.\d+\s+.*选购")
-        self.assertNotRegex(source, r"(?m)^##\s+5\.\d+\s+.*CUDA 编程")
+        self.assertNotIn("Bridge", source)
+        self.assertNotIn("Core 读者", source)
+        self.assertNotRegex(source, r"(?m)^##\s+A\.\d+\s+.*选购")
+        self.assertNotRegex(source, r"(?m)^##\s+A\.\d+\s+.*CUDA 编程")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,155 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机实验。对应 25.9 案例二修正之后的那一轮：单独开准入并同步关掉编排层的盲目重试，端到端 21 秒降到 16 秒。这一轮只动准入，步数和重排候选都没变，降的是排队。用在自己的链路上时，按 25.4 的顺序跑一遍替换。",
+  "variant": "admission-control",
+  "expectation": {
+    "written_at": "2026-09-20T09:00:00+08:00",
+    "metric": "P95 任务完成时间",
+    "baseline_ms": 21000,
+    "expected_ms": 16500,
+    "magnitude_basis": "25.2 那张表里排队占 31%，准入把排队压到 10% 以内，按占比折算端到端应降到 16.5 秒上下",
+    "null_criterion": "端到端改善不足 5% 即判为不成立",
+    "changed": "准入控制，阈值取第 20 章那个 lead_time 对应的位置；编排层的盲目重试同步关掉"
+  },
+  "layer_breakdown": {
+    "collected_under_load": "peak",
+    "load_note": "在 45 QPS 峰值负载下采集，不是空闲状态",
+    "shares": {
+      "orchestration": 0.225,
+      "retrieval": 0.281,
+      "model_serving": 0.363,
+      "tools": 0.131
+    }
+  },
+  "budget_check": {
+    "orchestration": {
+      "budget_ms": 500,
+      "actual_ms": 3600
+    },
+    "retrieval": {
+      "budget_ms": 1200,
+      "actual_ms": 4490
+    },
+    "model_serving": {
+      "budget_ms": 5000,
+      "actual_ms": 5810
+    },
+    "tools": {
+      "budget_ms": 1000,
+      "actual_ms": 2100
+    }
+  },
+  "scorecard": {
+    "end_to_end": {
+      "label": "端到端",
+      "improved": true,
+      "p95_task_ms": 16000,
+      "task_success_rate": {
+        "before": 0.962,
+        "after": 0.981,
+        "worsened": false
+      }
+    },
+    "quality": {
+      "label": "质量",
+      "improved": false,
+      "quality": {
+        "before": 0.874,
+        "after": 0.871,
+        "floor": 0.86,
+        "worsened": false
+      },
+      "structured_output_pass_rate": 0.993,
+      "note": "这一轮没动精度也没动模型，质量只做回归确认，分差在评测集的波动内"
+    },
+    "abandonment": {
+      "label": "用户放弃",
+      "improved": true,
+      "abandon_rate": 0.041,
+      "abandon_mean_step": 7.2
+    },
+    "orchestration": {
+      "label": "编排",
+      "improved": false,
+      "steps_p50": 12,
+      "steps_p95": 34,
+      "cumulative_input_tokens": 92000,
+      "note": "这一轮没碰工具粒度，步数不变；合并细粒度工具是 25.4 排在第 5 项的改动"
+    },
+    "retrieval": {
+      "label": "检索",
+      "improved": false,
+      "rerank_ms": 620,
+      "rerank_candidates": 200,
+      "cold_warm_ratio": 1.9,
+      "cache_hit_rates": {
+        "retrieval": 0.0,
+        "prefix": 0.4,
+        "answer": 0.0
+      }
+    },
+    "model_serving": {
+      "label": "模型服务",
+      "improved": true,
+      "queue_ms": 350,
+      "compute_ms": 480,
+      "calls_per_task": 7,
+      "p95_itl_ms": 62,
+      "goodput_qps": 11.4
+    },
+    "capacity": {
+      "label": "容量",
+      "improved": true,
+      "running_ratio": 0.86,
+      "preemption_count": {
+        "before": 34,
+        "after": 6,
+        "worsened": false
+      },
+      "kv_usage": 0.79
+    },
+    "governance": {
+      "label": "治理",
+      "improved": true,
+      "reject_rate": 0.052,
+      "timeout_p99_ms": 2400,
+      "cancel_effective_rate": 0.97
+    },
+    "routing": {
+      "label": "路由",
+      "improved": false,
+      "load_skew": 0.18,
+      "per_instance_hit_rate": [
+        0.42,
+        0.4,
+        0.39
+      ],
+      "worst_instance_p95_ms": 17300,
+      "note": "路由这一轮没改，仍是三实例轮询：会话前缀的命中天花板约 43%（25.7），三个实例都贴着它"
+    },
+    "cost": {
+      "label": "成本",
+      "improved": true,
+      "token_cost_per_task": 0.184,
+      "tasks_per_gpu_hour": 41.2
+    }
+  },
+  "cross_layer": [
+    "准入开始拒绝后编排层看到更多错误，已同步关掉盲目重试，实测重试量下降 94%",
+    "路由未在本轮改动，负载不均衡度维持 0.18，没有把拒绝集中到某个实例",
+    "步数没变（P95 仍是 34），模型调用次数也没变，所以模型服务的请求速率没降；降的是排队，每次调用从约 930 ms 到约 350 ms。按 25.5，请求速率要按模型调用次数算，不能用步数之比去估"
+  ],
+  "verdict": {
+    "label": "符合预期",
+    "passed": true,
+    "kept": true,
+    "reading": "端到端 21 秒降到 16 秒，与预期的 16.5 秒相符"
+  },
+  "boundary": {
+    "model": "Qwen2.5-0.5B-Instruct，FP16",
+    "load": "45 QPS 峰值，峰谷比 11.25，长度分布见 workload 描述",
+    "hardware": "3 × 单卡实例",
+    "config": "vLLM 参数见附带的 config 快照",
+    "chain_structure": "编排层 → 改写 → 检索 → 重排 → 主模型（多步），步数 P95 = 34，其中约 7 次模型调用"
+  }
+}

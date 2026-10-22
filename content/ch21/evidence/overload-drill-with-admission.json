@@ -1,0 +1,66 @@
+{
+  "synthetic": true,
+  "url": "http://localhost:8000",
+  "capacity_qps": 12.0,
+  "ramp": [
+    0.5,
+    1,
+    1.5,
+    2,
+    3
+  ],
+  "slo_ttft_ms": 1500.0,
+  "slo_itl_ms": 80.0,
+  "_note": "合成设定，不是真机演练。加了准入的那一版，用来演示 21.1 那个 B 的形状：多余流量被拒，被接受的请求延迟正常。",
+  "variant": "admission-control",
+  "steps": [
+    {
+      "offered_qps": 6.0,
+      "accepted_qps": 6.0,
+      "rejected_qps": 0.0,
+      "goodput": 5.98,
+      "p95_ttft": 380.0,
+      "error_breakdown": {}
+    },
+    {
+      "offered_qps": 12.0,
+      "accepted_qps": 11.4,
+      "rejected_qps": 0.6,
+      "goodput": 11.2,
+      "p95_ttft": 1250.0,
+      "error_breakdown": {
+        "429_with_retry_after": 18
+      }
+    },
+    {
+      "offered_qps": 18.0,
+      "accepted_qps": 11.6,
+      "rejected_qps": 6.4,
+      "goodput": 11.4,
+      "p95_ttft": 1290.0,
+      "error_breakdown": {
+        "429_with_retry_after": 192
+      }
+    },
+    {
+      "offered_qps": 24.0,
+      "accepted_qps": 11.5,
+      "rejected_qps": 12.5,
+      "goodput": 11.3,
+      "p95_ttft": 1310.0,
+      "error_breakdown": {
+        "429_with_retry_after": 375
+      }
+    },
+    {
+      "offered_qps": 36.0,
+      "accepted_qps": 11.3,
+      "rejected_qps": 24.7,
+      "goodput": 11.1,
+      "p95_ttft": 1340.0,
+      "error_breakdown": {
+        "429_with_retry_after": 741
+      }
+    }
+  ]
+}

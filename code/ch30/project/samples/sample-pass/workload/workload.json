@@ -1,0 +1,23 @@
+{
+  "_note": "合成设定。这不是真机项目，而是按第 30 章五项交付物、九块报告契约和八条自查构造的一份样例，用来演示 verify.py 的输出。",
+  "name": "rag-qa",
+  "context_tokens": 1800,
+  "output_tokens": 200,
+  "length_distribution": {
+    "p50": 1600,
+    "p95": 2900,
+    "max": 4096
+  },
+  "arrival": {
+    "pattern": "poisson",
+    "qps": 6.0
+  },
+  "concurrency": 16,
+  "slo": {
+    "ttft_p95_ms": 1500,
+    "itl_p95_ms": 60,
+    "error_rate": 0.001
+  },
+  "seed": 20260930,
+  "file_hash": "sha256:3f1a...c07d"
+}

@@ -35,7 +35,7 @@ client -> gateway -> scheduler -> worker -> runtime -> accelerator
 accelerator -> runtime -> worker -> gateway -> client
 ```
 
-返回链路没有再次经过 Router、Admission 和 Engine Scheduler，因为它们通常不再做目标选择或执行准入。真实框架可能还有 Output Processor、Detokenizer 或消息总线；接入时可以扩展组件，但不要混淆逻辑责任。
+返回给客户端的数据流不再经过 Router 和 Admission，因为它们不再做目标选择或执行准入。Worker 每轮的结果会回报给 Engine Scheduler，用来更新状态和判断终态，但这条回报不把数据送回客户端，所以简化响应路径没有画它。真实框架可能还有 Output Processor、Detokenizer 或消息总线；接入时可以扩展组件，但不要混淆逻辑责任。
 
 ## 3. 运行检查
 
@@ -93,4 +93,27 @@ python3 -m unittest discover -s code/ch04 -p 'test_*.py'
 - 这是一份教学用参考架构，不是特定框架的源码模型。
 - 逻辑组件不等于独立进程；多个角色可以部署在同一个单元中。
 - Demo 不连接真实服务，也不采集 TTFT、吞吐或 GPU 指标。
-- 多副本在后续章节展开；多 GPU 和 PD Disaggregation 放在 Advanced。
+- 多副本在后续章节展开；多 GPU 和 PD 分离放在附录 C、E。
+
+## 7. 参考文档
+
+4.6 节那段分层对照的出处，按层级排列（八份）：
+
+服务平台层（发布、扩缩容、多模型治理）
+
+- [Ray Serve Architecture](https://docs.ray.io/en/latest/serve/architecture.html)
+- [KServe Concepts and Architecture](https://kserve.github.io/website/docs/concepts)
+
+推理服务器层（协议入口、模型实例管理）
+
+- [Triton Inference Server Architecture](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/architecture.html)
+- [NVIDIA Dynamo Architecture](https://docs.nvidia.com/dynamo/dev/knowledge-base/concepts/architecture)
+
+LLM 引擎层（KV Cache 调度、模型执行）
+
+- [vLLM Architecture Overview](https://docs.vllm.ai/en/stable/design/arch_overview/)
+- [TensorRT-LLM Executor API](https://nvidia.github.io/TensorRT-LLM/advanced/executor.html)
+- [llama.cpp README](https://github.com/ggml-org/llama.cpp/blob/master/README.md)
+- [SGLang Documentation](https://docs.sglang.io/)
+
+引这些文档是为了确认各系统覆盖哪些层级，不是做功能或性能对比。文档会随版本变化，比较之前先确认版本。

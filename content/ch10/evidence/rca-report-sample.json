@@ -1,0 +1,132 @@
+{
+  "_note": "合成数据，对应正文 10.6 那次调查。它证明流程能走通、报告结构长什么样，不是任何真实系统的诊断结论。",
+  "problem": {
+    "symptom": "TTFT P99 从 400 ms 升到 6 s",
+    "scope": "只影响 prompt 超过 4000 token 的请求，约占全量的 8%",
+    "since": "2026-09-08 14:20，持续至今",
+    "baseline": "2026-09-01 同负载下 TTFT P99 = 400 ms，workload 与 Baseline 协议见 baseline-chat-0901.json"
+  },
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "并发上升导致队列积压，长 prompt 请求在队列里等待，TTFT 因此上升",
+      "expected_evidence": "请求级记录里长 prompt 请求的 Queue 占 TTFT 比例显著升高，且并发曲线在 14:20 有跳变",
+      "layer": "request",
+      "threshold": "长 prompt 请求逐条算 Queue ÷ TTFT 取中位数，达到 70% 以上（9/1 Baseline 上为 15%；排队若是唯一原因应约 94%，只解释一半增量约 48%）",
+      "verdict": "supported"
+    },
+    {
+      "id": "H2",
+      "statement": "长 prompt 的 Prefill 计算量超过单批 token 预算，被拆成多轮调度，首 token 因此延后",
+      "expected_evidence": "同一条请求在首 token 之前出现多于一次 scheduled 事件",
+      "layer": "framework",
+      "threshold": "同长度的长 prompt 请求，首 token 前的 scheduled 事件数比 9/1 Baseline 多（或每轮分到的 Prefill token 数比 9/1 少）",
+      "verdict": "unconfirmed"
+    },
+    {
+      "id": "H3",
+      "statement": "新版本关闭了 Prefix Cache，重复前缀不再复用，Prefill 计算量成倍增加",
+      "expected_evidence": "配置 diff 里出现 Prefix Cache 相关改动，且相同前缀请求与冷请求的 TTFT 不再有差异",
+      "layer": "config",
+      "threshold": "相同前缀请求比冷请求快不到 30%（9/1 Baseline 上快约 60%，缓存失效时应接近 0，两种情形相差 60 个百分点，远大于这个比例自身的轮间波动）",
+      "verdict": "ruled_out"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E1",
+      "finding": "9/8 那次发布的配置 diff 未改动任何 Prefix Cache 相关项",
+      "layer": "config",
+      "collection_condition": "对比 9/1 与 9/8 两次发布的启动命令与配置文件，无采集开销"
+    },
+    {
+      "id": "E2",
+      "finding": "相同前缀请求的 TTFT 比冷请求低 61%，超过 30% 的门槛，缓存仍在生效",
+      "layer": "request",
+      "collection_condition": "9/8 15:10-15:25 请求级记录，采样率 100%，未开启任何 profiler"
+    },
+    {
+      "id": "E3",
+      "finding": "14:20 起在途并发从 20 升到 90，其中 70 来自上游一个新上线的批处理任务",
+      "layer": "request",
+      "collection_condition": "9/8 14:00-15:00 请求级记录与并发曲线，采样率 100%，未开启任何 profiler"
+    },
+    {
+      "id": "E4",
+      "finding": "长 prompt 请求的 Queue 占 TTFT 的 82%，超过 70% 的门槛",
+      "layer": "request",
+      "collection_condition": "9/8 14:30-15:00 请求级记录，仅统计 prompt > 4000 token 的请求，采样率 100%"
+    },
+    {
+      "id": "E7",
+      "finding": "短 prompt 请求的 Queue P99 只从 35 ms 涨到 40 ms，排队集中在长请求上：H1 的机制修正为 KV 空间凑不够长请求一次的需求，而不是并发上限本身",
+      "layer": "request",
+      "collection_condition": "9/8 14:30-15:00 请求级记录，仅统计 prompt ≤ 4000 token 的请求，采样率 100%"
+    },
+    {
+      "id": "E5",
+      "finding": "8/26 下午 GPU 利用率同样达到 93% 时，TTFT P99 仍为 430 ms，并发为 24",
+      "layer": "request",
+      "collection_condition": "历史监控回看，15 秒聚合窗口，无新增采集"
+    },
+    {
+      "id": "E6",
+      "finding": "把批处理任务并发上限从 70 压到 20 后，同流量重跑三轮 TTFT P99 为 640 / 590 / 620 ms，均值约 620 ms",
+      "layer": "request",
+      "collection_condition": "复用 9/1 的 workload 描述与 Baseline 协议：Warmup 20、三轮、窗口两端为首末计数请求、在途请求 drained；批处理任务照常运行，已限到 20 并发"
+    }
+  ],
+  "ruled_out": [
+    {
+      "claim": "模型权重被换了",
+      "basis": "model revision 在 9/1 与 9/8 一致，同为 a1b2c3d"
+    },
+    {
+      "claim": "网络劣化",
+      "basis": "要解释的是 TTFT 多出的约 5.6 s；客户端与服务端时长差值 9/1 为 35 ms、9/8 为 38 ms，只动了 3 ms，与预期效应差三个数量级，按量级排除"
+    },
+    {
+      "claim": "GPU 打满导致变慢",
+      "basis": "反例 E5：8/26 利用率 93% 时 TTFT P99 仍为 430 ms，差的是并发不是利用率"
+    },
+    {
+      "claim": "H3 Prefix Cache 被关闭",
+      "basis": "E1 与 E2：配置未改动，且缓存仍带来 61% 的 TTFT 差异，超过 30% 的门槛"
+    }
+  ],
+  "conclusion": {
+    "statement": "H1 成立，是本次劣化的主要原因：上游批处理任务把在途并发从 20 推到 90，长 prompt 请求的 Queue 占 TTFT 达 82%。机制初步指向长请求进不了调度，是 KV 空间凑不够还是单步 token 预算被大批 Decode 占满，本次未采 KV 使用率与调度记录，分不开",
+    "confidence": "high",
+    "supported_by": [
+      "E3",
+      "E4",
+      "E5",
+      "E6",
+      "E7"
+    ],
+    "resolved": "TTFT P99 从 6 s 回到 620 ms",
+    "not_resolved": "620 ms 与 9/1 的 400 ms 相差 55%；改动后三轮自身的 CV 约 4%，三轮对三轮的线不到一成，该差距是真实的"
+  },
+  "unknowns": [
+    {
+      "item": "H1 的机制是 KV 空间不够还是单步 token 预算被占满",
+      "reason": "本次未采 KV Cache 使用率与调度记录，E7 的现象两种机制都能解释",
+      "impact": "机制定不下来，下一步的改动方向（扩 KV 还是调 token 预算）就定不下来"
+    },
+    {
+      "item": "H2 是否同时成立",
+      "reason": "框架级 trace 未采集，无法判断长 prompt 的 Prefill 是否被拆成多轮",
+      "impact": "若 H2 也成立，仅解决 H1 只能恢复一部分，剩余 220 ms 的一部分由它贡献"
+    },
+    {
+      "item": "批处理任务保留的 20 并发贡献了多少",
+      "reason": "9/1 Baseline 采集时该任务尚不存在，两次实验的负载构成本身不同",
+      "impact": "它与 H2 共同解释那 220 ms，本次实验分不开这两种解释"
+    }
+  ],
+  "next_step": {
+    "change": "采一次框架级 trace 判定 H2；或把批处理并发临时压到 0 跑一轮，先把两种解释分开",
+    "tier": "config",
+    "verification": "用 9/1 那份 workload 描述同流量重跑三轮，沿用同样的 Warmup、轮次与窗口定义，并写明同时在跑的批处理流量"
+  }
+}

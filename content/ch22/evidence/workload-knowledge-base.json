@@ -1,0 +1,13 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机负载。字段口径沿用第 6 章那份 workload 描述。",
+  "name": "企业知识库助手",
+  "mean_qps": 14.0,
+  "tokens_per_request": 1400,
+  "input_tokens_mean": 1200,
+  "output_tokens_mean": 200,
+  "arrival_pattern": "日内单峰，工作时间集中",
+  "system_prompt_tokens": 300,
+  "prefix_scope": "shared",
+  "_prefix_note": "300 token 的 system prompt 是每个请求都带的全体共享前缀，多副本时每个实例各存一份照样命中（22.4）。它含在 input_tokens_mean 的 1200 里，不是额外加上去的。"
+}

@@ -1,0 +1,32 @@
+{
+  "synthetic": true,
+  "_note": "合成设定。25.7 那五条断言，每条都带依据。",
+  "rules": {
+    "prefix_cache_hit_rate": {
+      "actual": 0.6,
+      "threshold": 0.55,
+      "direction": "min",
+      "basis": "P95 任务约 7 次模型调用，追加式上下文里可缓存占比约 1 − 2/7 ≈ 71%（每次调用只有新增那一段是全新的），前缀亲和后的路由命中约 0.9，天花板约 64%，门槛留约 9 个点的余量"
+    },
+    "prompt_order_fixed_first": {
+      "actual": true,
+      "basis": "布尔判据。顺序一错，上面那个 71% 直接归零（第 13 章）"
+    },
+    "load_skew": {
+      "actual": 0.18,
+      "threshold": 0.3,
+      "direction": "max",
+      "basis": "第 22.4 节给的经验界，0.3 以下感觉不到，0.5 以上最慢的实例开始决定 P99"
+    },
+    "steps_p95": {
+      "actual": 9,
+      "threshold": 10,
+      "direction": "max",
+      "basis": "25.3 那份预算按 10 步给编排层 500 ms（每步 50 ms）；步数一涨编排层先超支，省下的那 300 ms 余量就被吃掉"
+    },
+    "attention_kernel_allowlisted": {
+      "actual": true,
+      "basis": "布尔判据。第 18 章案例三的静默回退只有这一条能拦住"
+    }
+  }
+}

@@ -1,0 +1,714 @@
+{
+  "_note": "合成样例，不是真机结果。它证明的是这套五维结构能走通、成品长什么样，以及五轮各自演示一种情形：第 0 轮只出 Goodput 曲线并按 SLO 筛出可行档位，第 1 轮符合预期，第 2 轮四个维度全部改善而质量越界所以判失败，第 3 轮低于预期且暴露离线与线上接受率的差，第 4 轮主指标在波动内不可分辨而收益在容量一列。在真实服务上按同样结构采数据后替换它。",
+  "synthetic": true,
+  "name": "decode-optimization-五轮",
+  "model_config": "code/ch15/model-7b-generic.json",
+  "rounds": [
+    {
+      "round": 0,
+      "expectation": {
+        "written_at": "2026-09-23T08:40:00+08:00",
+        "direction": "不预期改善，这一轮是为了定位当前在 Goodput 曲线上的哪个位置",
+        "magnitude": {},
+        "unchanged": [
+          "本轮不改任何配置以外的东西"
+        ],
+        "null_criterion": "若 Goodput 峰值落在扫描区间的端点上，说明区间选窄了，要扩档重扫"
+      },
+      "fixed": {
+        "workload": {
+          "name": "decode-long-output",
+          "type": "chat",
+          "length_prompt": {
+            "p50": 600,
+            "p90": 1200,
+            "p99": 2000
+          },
+          "length_output": {
+            "p50": 400,
+            "p90": 900,
+            "p99": 1600
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 2.3,
+            "duration_s": 600,
+            "seed": 20260923
+          },
+          "slo": {
+            "good_request": {
+              "ttft_ms": 1500,
+              "itl_p95_ms_per_request": 80,
+              "note": "一条请求成功、TTFT 不超过 1500 ms、且它自己的 ITL 序列的 P95 不超过 80 ms，才算 good request（5.4）"
+            },
+            "required_attainment": 0.95
+          },
+          "note": "第 6 章的描述文件，五轮完全相同，含随机种子；输出长度是关键，短了测不出 Decode 的问题",
+          "sweep_arrival": {
+            "mode": "closed",
+            "concurrency": "等于这一档的批量上限",
+            "duration_s": 180
+          },
+          "load_note": "第 0 轮闭环扫描：批量 32 时吞吐约 1592 token/s，平均输出约 490 token，折合约 3.3 req/s；第 1 至 4 轮用 2.3 req/s，负载率约 0.7。按 Little's Law，平均端到端约 11 s 时同时在跑约 25 条，装得进批量 32"
+        },
+        "protocol": {
+          "warmup": 30,
+          "repeats": 3,
+          "window": "预热完成后的测量窗口（扫描每档 180 s，对照轮 600 s），在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，五轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "五轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "max_num_seqs": "扫描 4,8,16,32,64,128"
+      },
+      "scorecard": {
+        "latency": {
+          "tpot_mean_ms": 20.1,
+          "itl_p95_ms": 55,
+          "itl_max_ms": 190,
+          "note": "取 Goodput 峰值那一档（批量 32）的数"
+        },
+        "throughput": {
+          "tps": 1592,
+          "concurrency": 32
+        },
+        "capacity": {
+          "memory_gib": 72.0,
+          "preemptions": 0
+        },
+        "acceptance": null,
+        "quality": null
+      },
+      "sweep": {
+        "points": [
+          {
+            "batch": 4,
+            "tps": 271,
+            "itl_p95_ms": 22,
+            "slo_attainment": 1.0
+          },
+          {
+            "batch": 8,
+            "tps": 515,
+            "itl_p95_ms": 29,
+            "slo_attainment": 1.0
+          },
+          {
+            "batch": 16,
+            "tps": 938,
+            "itl_p95_ms": 41,
+            "slo_attainment": 0.99
+          },
+          {
+            "batch": 32,
+            "tps": 1592,
+            "itl_p95_ms": 55,
+            "slo_attainment": 0.98
+          },
+          {
+            "batch": 64,
+            "tps": 2442,
+            "itl_p95_ms": 96,
+            "slo_attainment": 0.74
+          },
+          {
+            "batch": 128,
+            "tps": 3332,
+            "itl_p95_ms": 240,
+            "slo_attainment": 0.2
+          }
+        ],
+        "note": "19.3 那条曲线。每档把并发固定成这一档的批量，闭环发压；达标率是 good request 的占比，SLO 要求它不低于 95%",
+        "design": "closed_loop_fixed_concurrency"
+      },
+      "boundary": {
+        "model": "Generic-7B（code/ch15/model-7b-generic.json）：32 层、8 个 KV head、head_dim 128、每 token KV 128 KiB。换模型后这些数字全部要重算",
+        "workload": "decode-long-output：输出 P50 400 / P99 1600。输出短的负载上这些收益都不成立",
+        "hardware": "单卡 80 GiB、带宽 1000 GB/s、PCIe 16 GB/s。换卡后分界点与单步下限都会移动",
+        "config": "temperature 0、Prefix Cache 关、nearest-rank 分位、样本标准差。任一不同，两组数字只是长得像"
+      },
+      "verdict": {
+        "note": "这一轮不做对照，只定位曲线位置，所以不写四种结论里的任何一种。按 19.3 的规则先筛可行集：达标率不低于 95% 的是批量 4、8、16、32；其中 Goodput 最大的是 32（1560）。TPS 和 Goodput 的峰值都在 128，而它不在可行集里。后面四轮全部在批量 32 上做",
+        "kept": false
+      }
+    },
+    {
+      "round": 1,
+      "expectation": {
+        "written_at": "2026-09-23T10:15:00+08:00",
+        "direction": "并发上限上升，显存占用不变，TPOT 略降",
+        "magnitude": {
+          "concurrency": {
+            "expected_pct": 0.96,
+            "basis": "每 token KV 从 128 KiB 降到 64 KiB，总 token 容量翻倍；按 17.2 的算法 213 → 427，留一点实现损耗，预期 +96%"
+          }
+        },
+        "unchanged": [
+          "输出 token 数",
+          "质量分下降不超过 0.01"
+        ],
+        "null_criterion": "并发提升若小于 Baseline 的可识别线（2 × CV），视为无效"
+      },
+      "fixed": {
+        "workload": {
+          "name": "decode-long-output",
+          "type": "chat",
+          "length_prompt": {
+            "p50": 600,
+            "p90": 1200,
+            "p99": 2000
+          },
+          "length_output": {
+            "p50": 400,
+            "p90": 900,
+            "p99": 1600
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 2.3,
+            "duration_s": 600,
+            "seed": 20260923
+          },
+          "slo": {
+            "good_request": {
+              "ttft_ms": 1500,
+              "itl_p95_ms_per_request": 80,
+              "note": "一条请求成功、TTFT 不超过 1500 ms、且它自己的 ITL 序列的 P95 不超过 80 ms，才算 good request（5.4）"
+            },
+            "required_attainment": 0.95
+          },
+          "note": "第 6 章的描述文件，五轮完全相同，含随机种子；输出长度是关键，短了测不出 Decode 的问题",
+          "sweep_arrival": {
+            "mode": "closed",
+            "concurrency": "等于这一档的批量上限",
+            "duration_s": 180
+          },
+          "load_note": "第 0 轮闭环扫描：批量 32 时吞吐约 1592 token/s，平均输出约 490 token，折合约 3.3 req/s；第 1 至 4 轮用 2.3 req/s，负载率约 0.7。按 Little's Law，平均端到端约 11 s 时同时在跑约 25 条，装得进批量 32"
+        },
+        "protocol": {
+          "warmup": 30,
+          "repeats": 3,
+          "window": "预热完成后的测量窗口（扫描每档 180 s，对照轮 600 s），在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，五轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "五轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "kv_cache_dtype": "fp16 → int8"
+      },
+      "results": {
+        "primary_metric": "concurrency",
+        "direction": "higher_is_better",
+        "baseline": [
+          213,
+          212,
+          214
+        ],
+        "variant": [
+          419,
+          416,
+          421
+        ]
+      },
+      "scorecard": {
+        "latency": {
+          "tpot_mean_ms": 19.6,
+          "itl_p95_ms": 53,
+          "itl_max_ms": 185
+        },
+        "throughput": {
+          "tps": 1652,
+          "concurrency": 363
+        },
+        "capacity": {
+          "memory_gib": 72.4,
+          "preemptions": 0,
+          "note": "显存占用基本不变，腾出来的容量全部变成了并发"
+        },
+        "acceptance": null,
+        "quality": {
+          "score": 0.9503,
+          "baseline_score": 0.9537,
+          "drop": 0.0034,
+          "floor": 0.01,
+          "floor_written_at": "2026-09-23T10:10:00+08:00",
+          "evalset": "content/ch17/evidence/quant-eval-sample.jsonl",
+          "per_kind": {
+            "short_qa": {
+              "drop": 0.0
+            },
+            "long_answer": {
+              "drop": 0.005
+            },
+            "structured_output": {
+              "drop": 0.004
+            },
+            "domain_hard": {
+              "drop": 0.008
+            }
+          }
+        }
+      },
+      "interaction": null,
+      "boundary": {
+        "model": "Generic-7B（code/ch15/model-7b-generic.json）：32 层、8 个 KV head、head_dim 128、每 token KV 128 KiB。换模型后这些数字全部要重算",
+        "workload": "decode-long-output：输出 P50 400 / P99 1600。输出短的负载上这些收益都不成立",
+        "hardware": "单卡 80 GiB、带宽 1000 GB/s、PCIe 16 GB/s。换卡后分界点与单步下限都会移动",
+        "config": "temperature 0、Prefix Cache 关、nearest-rank 分位、样本标准差。任一不同，两组数字只是长得像"
+      },
+      "verdict": {
+        "label": "符合预期",
+        "passed": true,
+        "note": "并发 213 → 419，改善 96.7%，预期 96%。质量各维度均在底线内，可以保留",
+        "kept": true
+      }
+    },
+    {
+      "round": 2,
+      "expectation": {
+        "written_at": "2026-09-23T13:20:00+08:00",
+        "direction": "TPOT 下降，并发略升",
+        "magnitude": {
+          "tpot_mean_ms": {
+            "expected_pct": 0.4,
+            "basis": "权重 14 GB → 7 GB，单步下限 14 ms → 7 ms；第 0 轮实测是下限的 1.58 倍，按 17.8 那条除法折算 0.5 ÷ 1.58 ≈ 32%，留出 kernel 更省的余量，预期 40%"
+          }
+        },
+        "unchanged": [
+          "并发不下降",
+          "质量各维度下降均不超过 0.01"
+        ],
+        "null_criterion": "TPOT 改善若小于 Baseline 的可识别线（2 × CV），视为无效"
+      },
+      "fixed": {
+        "workload": {
+          "name": "decode-long-output",
+          "type": "chat",
+          "length_prompt": {
+            "p50": 600,
+            "p90": 1200,
+            "p99": 2000
+          },
+          "length_output": {
+            "p50": 400,
+            "p90": 900,
+            "p99": 1600
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 2.3,
+            "duration_s": 600,
+            "seed": 20260923
+          },
+          "slo": {
+            "good_request": {
+              "ttft_ms": 1500,
+              "itl_p95_ms_per_request": 80,
+              "note": "一条请求成功、TTFT 不超过 1500 ms、且它自己的 ITL 序列的 P95 不超过 80 ms，才算 good request（5.4）"
+            },
+            "required_attainment": 0.95
+          },
+          "note": "第 6 章的描述文件，五轮完全相同，含随机种子；输出长度是关键，短了测不出 Decode 的问题",
+          "sweep_arrival": {
+            "mode": "closed",
+            "concurrency": "等于这一档的批量上限",
+            "duration_s": 180
+          },
+          "load_note": "第 0 轮闭环扫描：批量 32 时吞吐约 1592 token/s，平均输出约 490 token，折合约 3.3 req/s；第 1 至 4 轮用 2.3 req/s，负载率约 0.7。按 Little's Law，平均端到端约 11 s 时同时在跑约 25 条，装得进批量 32"
+        },
+        "protocol": {
+          "warmup": 30,
+          "repeats": 3,
+          "window": "预热完成后的测量窗口（扫描每档 180 s，对照轮 600 s），在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，五轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "五轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "weight_dtype": "fp16 → int8"
+      },
+      "results": {
+        "primary_metric": "tpot_mean_ms",
+        "direction": "lower_is_better",
+        "baseline": [
+          22.1,
+          22.4,
+          21.9
+        ],
+        "variant": [
+          13.2,
+          13.0,
+          13.4
+        ]
+      },
+      "scorecard": {
+        "latency": {
+          "tpot_mean_ms": 12.0,
+          "itl_p95_ms": 44,
+          "itl_max_ms": 160,
+          "note": "四个维度里这一项最漂亮，正是它让人想放行"
+        },
+        "throughput": {
+          "tps": 1928,
+          "concurrency": 394
+        },
+        "capacity": {
+          "memory_gib": 72.4,
+          "preemptions": 0,
+          "note": "总占用不变：引擎按 gpu_memory_utilization 留出的总量没变，权重从 13.0 GiB 降到 6.5 GiB，省下的那 6.5 GiB 被 KV 池接走，所以变的是并发不是显存"
+        },
+        "acceptance": null,
+        "quality": {
+          "score": 0.9469,
+          "baseline_score": 0.9537,
+          "drop": 0.0068,
+          "floor": 0.01,
+          "floor_written_at": "2026-09-23T13:15:00+08:00",
+          "evalset": "content/ch17/evidence/quant-eval-sample.jsonl",
+          "per_kind": {
+            "short_qa": {
+              "drop": 0.0
+            },
+            "long_answer": {
+              "drop": 0.003
+            },
+            "structured_output": {
+              "drop": 0.039
+            },
+            "domain_hard": {
+              "drop": 0.002
+            }
+          },
+          "note": "总分只掉 0.68 个百分点，1 个百分点的底线轻松通过；而结构化输出那一维掉了 3.9 个百分点。短问答样本多，把它稀释掉了（17.4）"
+        }
+      },
+      "interaction": {
+        "stacked_on": [
+          "kv_cache_dtype"
+        ],
+        "remeasured_all_dimensions": true,
+        "net_change": "并发 419 → 447，权重腾出的 7 GiB 转成了约 7% 的并发；与 KV 量化不冲突",
+        "note": "叠加没有抵消，但这一轮仍判失败，原因在质量那一列"
+      },
+      "boundary": {
+        "model": "Generic-7B（code/ch15/model-7b-generic.json）：32 层、8 个 KV head、head_dim 128、每 token KV 128 KiB。换模型后这些数字全部要重算",
+        "workload": "decode-long-output：输出 P50 400 / P99 1600。输出短的负载上这些收益都不成立",
+        "hardware": "单卡 80 GiB、带宽 1000 GB/s、PCIe 16 GB/s。换卡后分界点与单步下限都会移动",
+        "config": "temperature 0、Prefix Cache 关、nearest-rank 分位、样本标准差。任一不同，两组数字只是长得像"
+      },
+      "verdict": {
+        "label": "符合预期",
+        "passed": false,
+        "note": "主指标符合预期，TPOT 22.1 → 13.2 降 40.3%，吞吐、并发、显存三项也全部改善。但结构化输出那一维掉了 3.9 个百分点，越过 1 个百分点的底线，所以这一轮判失败并回滚。四个维度改善抵不过一个越界",
+        "kept": false
+      }
+    },
+    {
+      "round": 3,
+      "expectation": {
+        "written_at": "2026-09-23T15:40:00+08:00",
+        "direction": "TPOT 下降，接受数高于盈亏线",
+        "magnitude": {
+          "tpot_mean_ms": {
+            "expected_pct": 0.6,
+            "basis": "离线样本上平均接受数 3.6，k=4、c=0.1，按 18.3 收益比 3.6 ÷ 1.4 = 2.57 倍，对应 TPOT 降 61%"
+          }
+        },
+        "unchanged": [
+          "质量不变（投机解码不改变输出分布）",
+          "并发下降不超过 5%"
+        ],
+        "null_criterion": "TPOT 改善若小于 Baseline 的可识别线（2 × CV），视为无效"
+      },
+      "fixed": {
+        "workload": {
+          "name": "decode-long-output",
+          "type": "chat",
+          "length_prompt": {
+            "p50": 600,
+            "p90": 1200,
+            "p99": 2000
+          },
+          "length_output": {
+            "p50": 400,
+            "p90": 900,
+            "p99": 1600
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 2.3,
+            "duration_s": 600,
+            "seed": 20260923
+          },
+          "slo": {
+            "good_request": {
+              "ttft_ms": 1500,
+              "itl_p95_ms_per_request": 80,
+              "note": "一条请求成功、TTFT 不超过 1500 ms、且它自己的 ITL 序列的 P95 不超过 80 ms，才算 good request（5.4）"
+            },
+            "required_attainment": 0.95
+          },
+          "note": "第 6 章的描述文件，五轮完全相同，含随机种子；输出长度是关键，短了测不出 Decode 的问题",
+          "sweep_arrival": {
+            "mode": "closed",
+            "concurrency": "等于这一档的批量上限",
+            "duration_s": 180
+          },
+          "load_note": "第 0 轮闭环扫描：批量 32 时吞吐约 1592 token/s，平均输出约 490 token，折合约 3.3 req/s；第 1 至 4 轮用 2.3 req/s，负载率约 0.7。按 Little's Law，平均端到端约 11 s 时同时在跑约 25 条，装得进批量 32"
+        },
+        "protocol": {
+          "warmup": 30,
+          "repeats": 3,
+          "window": "预热完成后的测量窗口（扫描每档 180 s，对照轮 600 s），在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，五轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "五轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "speculative_decoding": "off → 草稿模型 Generic-0.7B，k=4"
+      },
+      "results": {
+        "primary_metric": "tpot_mean_ms",
+        "direction": "lower_is_better",
+        "baseline": [
+          22.0,
+          22.3,
+          21.8
+        ],
+        "variant": [
+          16.8,
+          17.2,
+          16.5
+        ]
+      },
+      "scorecard": {
+        "latency": {
+          "tpot_mean_ms": 15.3,
+          "itl_p95_ms": 47,
+          "itl_max_ms": 180
+        },
+        "throughput": {
+          "tps": 1558,
+          "concurrency": 350,
+          "note": "吞吐反而略降：草稿模型的额外计算在批量 32 上已经不是白拿的"
+        },
+        "capacity": {
+          "memory_gib": 73.7,
+          "preemptions": 2,
+          "note": "草稿模型 1.3 GiB 常驻，按 64 KiB 的 KV 算吃掉约 2.1 万个 token 的容量；抢占从 0 变成 2"
+        },
+        "acceptance": {
+          "mean_accepted": 2.1,
+          "k": 4,
+          "draft_cost_ratio": 0.1,
+          "break_even": 1.4,
+          "by_sample": {
+            "offline": 3.6,
+            "online": 2.1
+          },
+          "gain_by_batch": {
+            "8": 0.331,
+            "32": 0.236
+          },
+          "note": "接受数由草稿和目标在这批内容上的一致程度决定，与批量无关（18.3）。离线样本测到 3.6，线上流量更开放，只有 2.1；批量 32 又贴着 18.3 那条 分界点 ÷ (k + 1) ≈ 31 的线，验证不再完全免费。两件事叠加，才有 23.6% 这个收益。19.6 要两个批量档位各测一次，看的是收益比随批量怎么变，不是接受数"
+        },
+        "quality": null
+      },
+      "interaction": {
+        "stacked_on": [
+          "kv_cache_dtype"
+        ],
+        "remeasured_all_dimensions": true,
+        "net_change": "并发 419 → 397，少了 22 条。其中约 9 条是草稿权重那 1.3 GiB 占掉的（19.5 那笔账，相当于 KV 量化翻倍增量的 4%），另外约 13 条是草稿自己那份 KV：验证时每条请求要多留 k + 1 个位置",
+        "cancelled": false,
+        "note": "没有抵消，但叠加后并发是净下降的，这一项要和吞吐一起权衡"
+      },
+      "boundary": {
+        "model": "Generic-7B（code/ch15/model-7b-generic.json）：32 层、8 个 KV head、head_dim 128、每 token KV 128 KiB。换模型后这些数字全部要重算",
+        "workload": "decode-long-output：输出 P50 400 / P99 1600。输出短的负载上这些收益都不成立",
+        "hardware": "单卡 80 GiB、带宽 1000 GB/s、PCIe 16 GB/s。换卡后分界点与单步下限都会移动",
+        "config": "temperature 0、Prefix Cache 关、nearest-rank 分位、样本标准差。任一不同，两组数字只是长得像"
+      },
+      "verdict": {
+        "label": "低于预期",
+        "passed": true,
+        "note": "TPOT 降 23.6%，预期 61%。原因清楚：离线单请求接受数 3.6，线上批量 32 只有 2.1，按 18.3 的式子 2.1 ÷ 1.4 = 1.5 倍，对应 33%，再扣掉草稿模型抢的算力就是这个 23.6%。结论成立但收益不值得付那 2.1 万 token 的容量，最终不启用",
+        "kept": false
+      }
+    },
+    {
+      "round": 4,
+      "expectation": {
+        "written_at": "2026-09-23T17:05:00+08:00",
+        "direction": "TPOT 基本不变，图捕获显存下降",
+        "magnitude": {
+          "tpot_mean_ms": {
+            "expected_pct": 0.02,
+            "basis": "降低最大捕获批量不改变已捕获档位上的执行路径，批量 32 仍走同一张图；按 18.4，TPOT 变化预期不超过 2%"
+          }
+        },
+        "unchanged": [
+          "质量不变",
+          "峰值批量 32 仍然是一个被捕获的档位"
+        ],
+        "null_criterion": "TPOT 变化若小于 Baseline 的可识别线（三轮对三轮约 2.3 × CV），就是测不出来，这正是本轮想确认的"
+      },
+      "fixed": {
+        "workload": {
+          "name": "decode-long-output",
+          "type": "chat",
+          "length_prompt": {
+            "p50": 600,
+            "p90": 1200,
+            "p99": 2000
+          },
+          "length_output": {
+            "p50": 400,
+            "p90": 900,
+            "p99": 1600
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 2.3,
+            "duration_s": 600,
+            "seed": 20260923
+          },
+          "slo": {
+            "good_request": {
+              "ttft_ms": 1500,
+              "itl_p95_ms_per_request": 80,
+              "note": "一条请求成功、TTFT 不超过 1500 ms、且它自己的 ITL 序列的 P95 不超过 80 ms，才算 good request（5.4）"
+            },
+            "required_attainment": 0.95
+          },
+          "note": "第 6 章的描述文件，五轮完全相同，含随机种子；输出长度是关键，短了测不出 Decode 的问题",
+          "sweep_arrival": {
+            "mode": "closed",
+            "concurrency": "等于这一档的批量上限",
+            "duration_s": 180
+          },
+          "load_note": "第 0 轮闭环扫描：批量 32 时吞吐约 1592 token/s，平均输出约 490 token，折合约 3.3 req/s；第 1 至 4 轮用 2.3 req/s，负载率约 0.7。按 Little's Law，平均端到端约 11 s 时同时在跑约 25 条，装得进批量 32"
+        },
+        "protocol": {
+          "warmup": 30,
+          "repeats": 3,
+          "window": "预热完成后的测量窗口（扫描每档 180 s，对照轮 600 s），在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，五轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "五轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "cuda_graph_max_capture_size": "512 → 64（实际批量不超过 64，峰值批量 32 仍是捕获档位之一）"
+      },
+      "results": {
+        "primary_metric": "tpot_mean_ms",
+        "direction": "lower_is_better",
+        "baseline": [
+          22.0,
+          22.3,
+          21.8
+        ],
+        "variant": [
+          21.9,
+          22.1,
+          22.2
+        ]
+      },
+      "scorecard": {
+        "latency": {
+          "tpot_mean_ms": 20.1,
+          "itl_p95_ms": 54,
+          "itl_max_ms": 188
+        },
+        "throughput": {
+          "tps": 1648,
+          "concurrency": 372
+        },
+        "capacity": {
+          "memory_gib": 72.0,
+          "preemptions": 0,
+          "graph_memory_gib": {
+            "before": 2.4,
+            "after": 0.9,
+            "source": "启动日志（合成设定）"
+          },
+          "note": "总占用不变：引擎按 gpu_memory_utilization 留出的总量没变，省下的 1.5 GiB 图显存被 KV 池接走。按 64 KiB 每 token 是约 2.5 万 token，并发上限 419 → 429。图显存主要由最大捕获批量决定，所以动的是它，不是档位数（18.4）"
+        },
+        "acceptance": null,
+        "quality": null
+      },
+      "interaction": {
+        "stacked_on": [
+          "kv_cache_dtype"
+        ],
+        "remeasured_all_dimensions": true,
+        "net_change": "并发 419 → 429；峰值批量 32 仍在捕获档位里，没有引入填充浪费",
+        "cancelled": false,
+        "note": "档位对齐这件事按 19.5 检查过：第 0 轮找出的峰值批量 32 是被捕获的档位之一"
+      },
+      "boundary": {
+        "model": "Generic-7B（code/ch15/model-7b-generic.json）：32 层、8 个 KV head、head_dim 128、每 token KV 128 KiB。换模型后这些数字全部要重算",
+        "workload": "decode-long-output：输出 P50 400 / P99 1600。输出短的负载上这些收益都不成立",
+        "hardware": "单卡 80 GiB、带宽 1000 GB/s、PCIe 16 GB/s。换卡后分界点与单步下限都会移动",
+        "config": "temperature 0、Prefix Cache 关、nearest-rank 分位、样本标准差。任一不同，两组数字只是长得像"
+      },
+      "verdict": {
+        "label": "在波动内不可分辨",
+        "passed": true,
+        "note": "TPOT 变化 −0.15%，可识别线 2.59%，主指标测不出来，这是一个合法且诚实的结论。本轮的收益在容量一列：图捕获显存省回 1.5 GiB，并发上限 419 → 429。收益不大，但没有代价，所以保留，理由写在 capacity 而不是 latency",
+        "kept": true
+      }
+    }
+  ]
+}

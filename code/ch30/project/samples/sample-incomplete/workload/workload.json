@@ -1,0 +1,23 @@
+{
+  "_note": "合成设定。这份样例是 sample-pass 的“差一点”版本，专门踩中 30.4 那八条里的每一条：四条结构判定失败、四条启发式告警，外加第一处接缝对不上。用来演示verify.py 在一份看起来挺完整的项目上会说什么。",
+  "name": "rag-qa",
+  "context_tokens": 2400,
+  "output_tokens": 200,
+  "length_distribution": {
+    "p50": 2200,
+    "p95": 3600,
+    "max": 4096
+  },
+  "arrival": {
+    "pattern": "poisson",
+    "qps": 6.0
+  },
+  "concurrency": 16,
+  "slo": {
+    "ttft_p95_ms": 1500,
+    "itl_p95_ms": 60,
+    "error_rate": 0.001
+  },
+  "seed": 20260930,
+  "file_hash": "sha256:3f1a...c07d"
+}

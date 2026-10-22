@@ -1,0 +1,19 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机门禁结果。固定基准，只在人工确认时更新。",
+  "name": "release-2026-09-01",
+  "environment": {
+    "framework_version": "vllm 0.8.2",
+    "model": "Generic-7B",
+    "gpu": "1 × 80GiB",
+    "workload_hash": "wl-3f9c1a",
+    "batch": 32
+  },
+  "metrics": {
+    "p50_latency_ms": 420,
+    "p95_latency_ms": 980,
+    "p99_latency_ms": 1740,
+    "throughput_tps": 1560,
+    "peak_memory_gib": 61.2
+  }
+}

@@ -36,12 +36,31 @@ python3 code/ch03/mechanics.py --output mechanics-report.json
 - execution_trace 的第 0 步是 Prefill，后续步骤是 Decode。
 - Prefill 一次写入全部 Prompt 的 K/V；每个普通 Decode step 把 Cache 长度增加 1。
 
-## 真实模型扩展
-
-需要加载真实 Qwen2.5 模型时，继续运行 `content/workshops/00-model-internals`。该 Workshop 会读取真实 config、注册 forward hook，并观察 past_key_values 增长。它属于扩展实验，不改变本章 Demo 的离线可运行要求。
-
 ## 测试
 
 ```bash
 python3 -m unittest discover -s code/ch03 -p 'test_*.py'
 ```
+
+## chat_template_probe.py：那 30 个 token 由什么组成
+
+3.2 说第 1 章那次请求只发了一句话，服务端却报了 30 个 `prompt_tokens`。多出来的部分有两个可能的来源：模板套上去的控制标记，以及某些模型在没有 system 消息时自动插的一句默认系统提示。两者的量级差很多，猜不得。
+
+服务起着的时候（第 1.2 节那条命令），走它的 `/tokenize`：
+
+```bash
+python3 code/ch03/chat_template_probe.py \
+  --base-url http://127.0.0.1:8000/v1 \
+  --model Qwen/Qwen2.5-0.5B-Instruct \
+  --output chat-template-probe.json
+```
+
+本机装了 transformers 的话，也可以不启动服务：
+
+```bash
+python3 code/ch03/chat_template_probe.py --local
+```
+
+输出里要看三样：`rendered` 是渲染出来的完整文本，`has_default_system` 说模板有没有自己插一句，`segments` 把总数拆成“用户这句话”和“模板加进去的”。`reading` 那一行直接写明 3.2 该怎么措辞。
+
+这个脚本只做核对，不进正文的算例。

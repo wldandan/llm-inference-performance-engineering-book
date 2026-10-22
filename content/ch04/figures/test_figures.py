@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 FIGURE_DIR = Path(__file__).parent
+CHAPTER_DIR = FIGURE_DIR.parent
 SVG_NS = "http://www.w3.org/2000/svg"
 
 EXPECTED_FIGURES = {
@@ -17,7 +18,6 @@ EXPECTED_FIGURES = {
     "fig04-07_system_layer_mapping.svg": "成熟系统的架构层级映射",
     "fig04-08_architecture_to_analysis.svg": "从现象到组件和观测点",
     "fig04-09_demo_architecture_contract.svg": "架构契约 Demo",
-    "fig04-10_chapter_boundary.svg": "Chapter 4 的章节边界",
 }
 
 
@@ -68,6 +68,17 @@ class FigureSystemTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("单实例最小路径", source)
         self.assertIn("规模化可选层", source)
+
+    def test_chapter_carries_at_least_one_worked_example(self):
+        source = (CHAPTER_DIR / "ch04.md").read_text(encoding="utf-8")
+        # 4.7 把第 2 章 2.9 那条正常请求的 42 ms 拆解搬到组件上：
+        # req-ok 的 request_received 0 / queued 2 / scheduled 12 / first_token 42。
+        for number in ["2 ms", "10 ms", "30 ms", "42 ms"]:
+            self.assertIn(number, source)
+        self.assertIn("服务端首 token 等待", source)
+        self.assertIn("这几个数来自第 2 章的合成样例", source)
+        # 4.3 必须说清同一条请求可能在三处各等一次。
+        self.assertIn("同一条请求可能在这三处各等一次", source)
 
 
 if __name__ == "__main__":

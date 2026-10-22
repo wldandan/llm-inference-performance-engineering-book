@@ -103,3 +103,60 @@ class MechanicsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def load_probe():
+    path = Path(__file__).with_name("chat_template_probe.py")
+    if not path.exists():
+        raise AssertionError("code/ch03/chat_template_probe.py must exist")
+    spec = importlib.util.spec_from_file_location("chapter03_probe", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+class ChatTemplateProbeTests(unittest.TestCase):
+    """3.2 那 30 个 token 的构成。脚本本身要上机跑，这里只钉住它的读法。"""
+
+    def setUp(self):
+        self.probe = load_probe()
+
+    def test_the_overhead_is_the_difference_between_the_two_counts(self):
+        report = self.probe.analyse({
+            "prompt_tokens_with_template": 30,
+            "prompt_tokens_bare": 12,
+            "rendered": "<|im_start|>user\n请用三句话介绍 LLM 在线推理。<|im_end|>\n"
+                        "<|im_start|>assistant\n",
+        }, "请用三句话介绍 LLM 在线推理。")
+        self.assertEqual(report["template_overhead_tokens"], 18)
+        self.assertFalse(report["has_default_system"])
+        self.assertIn("控制标记本身", report["reading"])
+
+    def test_a_default_system_prompt_is_called_out(self):
+        """模板自己插的那句不是控制标记，3.2 不能把它算进去。"""
+        report = self.probe.analyse({
+            "prompt_tokens_with_template": 42,
+            "prompt_tokens_bare": 12,
+            "rendered": "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud."
+                        "<|im_end|>\n<|im_start|>user\n请用三句话介绍 LLM 在线推理。"
+                        "<|im_end|>\n<|im_start|>assistant\n",
+        }, "请用三句话介绍 LLM 在线推理。")
+        self.assertTrue(report["has_default_system"])
+        self.assertEqual(report["template_overhead_tokens"], 30)
+        self.assertIn("默认系统提示", report["reading"])
+
+    def test_a_missing_count_does_not_crash_the_reading(self):
+        report = self.probe.analyse({"prompt_tokens_with_template": None,
+                                     "prompt_tokens_bare": None,
+                                     "rendered": ""}, "x")
+        self.assertIsNone(report["template_overhead_tokens"])
+        self.assertIn("没拿到计数", report["reading"])
+
+    def test_local_mode_says_what_is_missing_instead_of_failing_late(self):
+        import sys
+        if "transformers" in sys.modules:
+            self.skipTest("transformers 已装，这条只测缺包时的提示")
+        with self.assertRaises(self.probe.ProbeError) as ctx:
+            self.probe.probe_via_transformers("any/model", "x")
+        self.assertIn("transformers", str(ctx.exception))

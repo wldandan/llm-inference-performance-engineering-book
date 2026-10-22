@@ -1,0 +1,122 @@
+{
+  "_note": "合成设定。这不是真机发布记录，而是按第 29 章九项清单和五处接缝构造的一份完整评审材料，用来演示 code/ch29/release_check.py 在材料齐备时的输出。数值取自本书前面各章：8 张卡来自第 16 章那张容量表，冷启动 300 秒来自 27.5，批量 32 来自第 19 章 Goodput 峰值那一点。",
+  "release": "svc-chat v2.4.0",
+  "date": "2026-09-30",
+  "owner": "推理平台组，值班人 mango",
+  "slo": {
+    "ttft_p95_ms": 2000,
+    "itl_p95_ms": 60,
+    "error_rate": 0.001,
+    "measurable": true,
+    "load_point": "批量 32，日内波峰 QPS 89"
+  },
+  "baseline": {
+    "framework_version": "vllm@0.6.3",
+    "model": "Qwen2.5-7B-Instruct",
+    "gpu": "1 × 80GiB",
+    "rerun_on_current_config": true,
+    "rerun_date": "2026-09-28"
+  },
+  "capacity": {
+    "context_tokens": 12000,
+    "output_tokens": 220,
+    "instances": 8,
+    "source": "第 16 章容量表第 9 步，打折 75%",
+    "binding_constraint": "memory",
+    "floor_instances": 3,
+    "_binding_note": "长文档问答，平均总长度一万六千 token 上下，KV 池按参考卡只放得下二十几条，低于批量 32，所以是显存先满；上下文变长可以直接按总长度之比换算成卡数（29.7）。"
+  },
+  "gate": {
+    "verdict": "pass",
+    "batch": 32,
+    "absolute_ttft_p95_ms": 2000,
+    "run_id": "gate-2026-09-29-01",
+    "waiver": null
+  },
+  "runtime": {
+    "framework_version": "vllm@0.6.3",
+    "batch": 32,
+    "prompt_template_tokens": 12000,
+    "retrieved_chunks": 5
+  },
+  "autoscale": {
+    "min_instances": 3,
+    "max_instances": 24,
+    "scale_up_threshold": 0.7,
+    "scale_down_threshold": 0.4
+  },
+  "monitoring": {
+    "available_metrics": [
+      "ttft_p95",
+      "itl_p95",
+      "itl_distribution",
+      "error_rate",
+      "rejection_rate",
+      "slo_attainment",
+      "running_ratio",
+      "queue_length",
+      "preemption_count",
+      "kv_usage",
+      "prefix_cache_hit_rate"
+    ],
+    "dashboard": "perf/serving-overview",
+    "verified_by": "上线前用一次压测确认每条曲线都出数"
+  },
+  "traffic_policy": {
+    "admission": {
+      "enabled": true,
+      "max_queue": 120
+    },
+    "timeout": {
+      "ttft_ms": 3000,
+      "total_ms": 60000
+    },
+    "cancellation": {
+      "propagate": true
+    },
+    "retry": {
+      "max_attempts": 2,
+      "budget_share": 0.1
+    },
+    "backpressure": {
+      "reject_over_queue": 120
+    }
+  },
+  "cold_start_s": 300,
+  "rollback": {
+    "trigger_conditions": [
+      "P95 TTFT 连续 10 分钟超过 2000 ms",
+      "错误率连续 5 分钟超过 1%"
+    ],
+    "rehearsed_duration_min": 12,
+    "rehearsed_date": "2026-09-26",
+    "cache_warmup_min": 20,
+    "irreversible": [
+      "已写入的对话日志",
+      "已发给用户的输出"
+    ],
+    "steps": [
+      "把网关权重切回旧版本",
+      "等在途请求跑完（最长 2 分钟）",
+      "缩掉新版本实例",
+      "确认命中率回到基线并观察 20 分钟"
+    ]
+  },
+  "change": {
+    "what": "检索片段 Top-5 不变，仅升级框架补丁版本",
+    "why": "长文档问答的召回覆盖率不够，算法侧评测显示 Top-8 能补上 4 个点",
+    "scope": "检索层与模型服务；编排层不变"
+  },
+  "risks": [
+    {
+      "risk": "上下文变长推高 KV 占用，并发上限下降",
+      "mitigation": "按 29.7 的换算重配卡数",
+      "verified": true
+    },
+    {
+      "risk": "长文档的冷查询比例在波峰时更高，检索段可能更慢",
+      "mitigation": "观察窗口前 2 小时盯冷热比",
+      "verified": false
+    }
+  ]
+}

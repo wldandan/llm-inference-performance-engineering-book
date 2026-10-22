@@ -1,0 +1,80 @@
+{
+  "_note": "合成设定。这份样例是 sample-pass 的“差一点”版本，专门踩中 30.4 那八条里的每一条：四条结构判定失败、四条启发式告警，外加第一处接缝对不上。用来演示verify.py 在一份看起来挺完整的项目上会说什么。",
+  "rounds": [
+    {
+      "id": "r1",
+      "expectation": "前缀命中后 TTFT 下降两成以上",
+      "changed": [
+        "开启 Prefix Cache",
+        "把批量从 16 提到 24"
+      ],
+      "conditions": {
+        "环境": "预发",
+        "时间": "下午"
+      },
+      "primary": {
+        "ttft_p95_ms": 860
+      },
+      "guardrails": {
+        "itl_p95_ms": 44
+      },
+      "verdict": "改善且超过波动",
+      "boundary": "同一知识库"
+    },
+    {
+      "id": "r2",
+      "expectation": "分块 Prefill 能压平 ITL 抖动",
+      "changed": [
+        "chunked prefill 分块大小改为 512"
+      ],
+      "conditions": {
+        "批量": 24,
+        "上下文": 2400
+      },
+      "primary": {
+        "itl_p95_ms": 39
+      },
+      "verdict": "改善且超过波动",
+      "boundary": "冷前缀"
+    },
+    {
+      "id": "r3",
+      "expectation": "KV 量化把并发上限抬一档",
+      "changed": [
+        "KV Cache 精度改为 FP8"
+      ],
+      "conditions": {
+        "批量": 24,
+        "上下文": 2400
+      },
+      "primary": {
+        "max_concurrency": 41
+      },
+      "guardrails": {
+        "ttft_p95_ms": 1210
+      },
+      "verdict": "改善且超过波动",
+      "boundary": "这一档模型"
+    },
+    {
+      "id": "r4",
+      "expectation": "调大调度器的 watermark 能减少抢占",
+      "changed": [
+        "watermark 0.01 改为 0.05"
+      ],
+      "conditions": {
+        "批量": 24,
+        "上下文": 2400
+      },
+      "primary": {
+        "preemption_count": 3
+      },
+      "guardrails": {
+        "ttft_p95_ms": 1188,
+        "itl_p95_ms": 43
+      },
+      "verdict": "改善且超过波动",
+      "boundary": "这份负载"
+    }
+  ]
+}

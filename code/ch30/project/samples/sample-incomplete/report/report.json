@@ -1,0 +1,66 @@
+{
+  "_note": "合成设定。这份样例是 sample-pass 的“差一点”版本，专门踩中 30.4 那八条里的每一条：四条结构判定失败、四条启发式告警，外加第一处接缝对不上。用来演示verify.py 在一份看起来挺完整的项目上会说什么。",
+  "system": {
+    "model": "Qwen2.5-0.5B-Instruct",
+    "gpu": "1 × 24GiB",
+    "framework_version": "vllm@0.6.3",
+    "batch": 16,
+    "deployment": "单卡单实例，前置一个检索服务",
+    "chain_structure": "client → gateway → retrieval → serving",
+    "startup_steps": [
+      "make serve",
+      "make smoke",
+      "make bench"
+    ]
+  },
+  "workload": "见 workload/workload.json，含长度分布、到达模式、种子与哈希",
+  "baseline": "见 baseline/baseline.json，5 轮重复，三项变异系数均在 3% 内",
+  "observability": {
+    "available": 8,
+    "collection_overhead_pct": 1.2,
+    "unavailable_stages": [
+      "client_queue",
+      "tokenizer_internal"
+    ],
+    "note": "这两段拿不到，报告里写 unavailable，不写 0",
+    "stage_breakdown_ms": {
+      "client_queue": 0,
+      "tokenizer_internal": 0,
+      "retrieval": 38,
+      "prefill": 412,
+      "decode": 730
+    }
+  },
+  "root_cause": {
+    "hypotheses": [
+      "检索慢",
+      "Prefill 占时高",
+      "排队"
+    ],
+    "excluded": [
+      "检索慢：P95 检索 38 ms，占比不足 4%"
+    ],
+    "conclusion": "客户端时长 1740 ms 减服务端 1180 ms，网络耗时 560 ms 是主要来源",
+    "residual_uncertainty": "未覆盖多知识库切换的场景"
+  },
+  "optimization": "见 experiment/rounds.json，三轮，其中一轮不可分辨",
+  "capacity": {
+    "cards": 2,
+    "headroom_share": 0.35,
+    "unit_cost_per_mtoken": 0.91,
+    "actual_utilization": 0.28,
+    "whatif": "峰谷比从 3 压到 2 可省一张卡"
+  },
+  "gate": "见 gate/gate.json，四条断言，阈值依据写在 threshold_basis",
+  "boundary": {
+    "model": "仅 Qwen2.5-0.5B-Instruct",
+    "workload": "仅这份 RAG 问答，上下文 1800 上下",
+    "hardware": "单卡 24GiB",
+    "config": "批量 16，chunked prefill 512",
+    "not_verified": [
+      "多卡",
+      "长上下文 8k 以上",
+      "多轮对话"
+    ]
+  }
+}

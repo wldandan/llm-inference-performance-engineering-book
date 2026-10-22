@@ -105,7 +105,7 @@ python3 code/ch01/streaming_client.py \
 
 ## 5. GX10 验收记录
 
-课程已在 GX10 的 `/home/admin/code/llm-inference-performance-engineering/code/ch01` 完成真实运行，使用 NVIDIA GB10 和 `Qwen/Qwen2.5-0.5B-Instruct`。脱敏报告保存在 [GX10 客户端流式报告](../../content/ch01/evidence/gx10-streaming-client-report.json)：1 次请求成功，收到 256 个输出 token，SSE 正常结束。旧记录中的 `vllm_version` 缺失，因此它可以证明链路跑通，但还不是完整的可复现实验记录；下次 GX10 复跑必须补录版本。
+本书已在 GX10 的 `/home/admin/code/llm-inference-performance-engineering/code/ch01` 完成真实运行，使用 NVIDIA GB10 和 `Qwen/Qwen2.5-0.5B-Instruct`。脱敏报告保存在 [GX10 客户端流式报告](../../content/ch01/evidence/gx10-streaming-client-report.json)：1 次请求成功，收到 256 个输出 token，SSE 正常结束。旧记录中的 `vllm_version` 缺失，因此它可以证明链路跑通，但还不是完整的可复现实验记录；下次 GX10 复跑必须补录版本。
 
 这份报告用于验收端到端链路，不是 Benchmark。它只有一个请求、一个并发，没有 Warmup、重复实验或负载分布控制。
 
@@ -116,3 +116,18 @@ python3 code/ch01/streaming_client.py \
 ```bash
 python3 -m unittest discover -s code/ch01 -p 'test_*.py'
 ```
+
+## 补两份记录里缺的字段
+
+`streaming_client.py` 现在还会记三样 1.9 和 1.11 点过名的东西，不必再手工补：
+
+```text
+validation_environment  主机名、Python 版本、GPU、驱动，以及从服务 /version 问来的 vLLM 版本
+finish_reason           这次是自然结束（stop）还是被 max_tokens 截断（length）
+raw_content_events      引擎发出的分片总数；stream_chunks 只数正文非空的那些
+empty_content_events    两者之差，正文为空的分片个数
+```
+
+最后两项解释的是 1.9 那个“254 个分片对 256 个 token”：**`stream_chunks` 的口径是正文非空的分片**，脚本遇到 `delta.content` 为空串时直接跳过。有的 token 解不出完整字符，引擎就会发出一个正文为空的分片，它不计数。跑一次就能看到 `raw_content_events − stream_chunks` 正好是差额，不用去抓包。
+
+拿到新报告之后，把 `content/reference/environment.md` 第一节里那两处“待填”补上。

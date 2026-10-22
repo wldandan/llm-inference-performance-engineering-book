@@ -1,0 +1,422 @@
+{
+  "_note": "合成数据，不是真机结果。在真实服务上由 code/ch14/prefill_experiment.py 重跑后替换。这份文件的作用是证明 14.7 那套报告结构能走通、成品长什么样。其中所有与模型有关的数字都能用 code/ch11/prefill_model.py 复算；时间尺度按第 12 章的实测锚点（1230 token、320 ms），负载率约 0.3。",
+  "name": "prefill-optimization-four-rounds",
+  "synthetic": true,
+  "model_config": "code/ch11/model-qwen25-05b.json",
+  "rounds": [
+    {
+      "expectation": {
+        "written_at": "2026-09-22T09:00:00Z",
+        "direction": "TTFT 下降，输入 token 下降",
+        "magnitude": {
+          "ttft_p50_ms": {
+            "expected_pct": 0.333,
+            "basis": "P50 那条请求 2630 → 1830 token，按第 11 章模型 S×(16640+S) 算得 33.3%；负载率约 0.3，排队只占小头"
+          },
+          "input_tokens": {
+            "expected_pct": 0.304,
+            "basis": "少拼 4 段 × 200 token，800/2630"
+          }
+        },
+        "unchanged": [
+          "输出 token 数",
+          "回答质量分下降不超过 0.02"
+        ],
+        "null_criterion": "TTFT P50 改善若小于 Baseline 的可识别线（三轮对三轮约 2.3 × CV），视为不可分辨"
+      },
+      "fixed": {
+        "workload": {
+          "name": "prefill-long-context",
+          "type": "rag",
+          "length_prompt": {
+            "p50": 2630,
+            "p90": 6400,
+            "p99": 9200,
+            "max": 12000
+          },
+          "length_output": {
+            "p50": 180,
+            "p90": 320,
+            "p99": 480
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 0.25,
+            "duration_s": 800,
+            "seed": 20260922
+          },
+          "slo": {
+            "metric": "ttft",
+            "quantile": "p95",
+            "threshold_ms": 4000
+          },
+          "note": "第 6 章的描述文件，四轮完全相同，含随机种子",
+          "load_note": "按第 12 章的实测尺度，这份负载平均每条请求的 Prefill 约 1.2 s，0.25 req/s 时负载率约 0.3；每轮约 200 条请求，P95 护栏才有约 10 个尾部样本（5.5）"
+        },
+        "protocol": {
+          "warmup": 20,
+          "repeats": 3,
+          "window": "预热完成后 800 s，在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，四轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "四轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "retrieval_top_k": "10 → 6"
+      },
+      "results": {
+        "primary_metric": "ttft_p50_ms",
+        "baseline": [
+          1195,
+          1221,
+          1210
+        ],
+        "variant": [
+          801,
+          815,
+          806
+        ]
+      },
+      "guardrails": {
+        "quality_score": "0.79 → 0.78，降 0.01，在预期内",
+        "recall": "0.91 → 0.88",
+        "input_tokens": "2630 → 1830，降 30.4%，与预期一致",
+        "ttft_p95_ms": "3720 → 2960，SLO 4000 ms 之内；P95 那条请求约 7950 token，单看它自己的 Prefill 只降约 13%，其余来自排队变短（第 20 章）"
+      },
+      "verdict": {
+        "label": "符合预期",
+        "baseline_mean": 1208.67,
+        "variant_mean": 807.33,
+        "observed_pct": 0.332,
+        "expected_pct": 0.333,
+        "gap_pct": -0.001,
+        "detectable_difference": 0.0245,
+        "coefficient_of_variation": 0.0108,
+        "reading": "改善 33.2%，预期 33.3%，相差 0.1 个百分点，在可识别线 2.4% 以内"
+      },
+      "boundary": {
+        "workload": "RAG，prompt P50 2630 / P99 9200，泊松 0.25 req/s（负载率约 0.3），含短请求；换成短 prompt 负载结论要重验",
+        "hardware": "单卡单副本；多副本会改变 Prefix Cache 的命中率",
+        "config": "temperature 0，Prefix Cache 除第 2 轮外全程关闭，nearest-rank 分位数",
+        "model": "Qwen2.5-0.5B：24 层、hidden 896、KV 头 2、GEMM 与 Attention 的交叉点 16640 token。换模型后交叉点会移动，本次结论需要重验"
+      }
+    },
+    {
+      "expectation": {
+        "written_at": "2026-09-22T09:00:00Z",
+        "direction": "TTFT 下降",
+        "magnitude": {
+          "ttft_p50_ms": {
+            "expected_pct": 0.08,
+            "basis": "可缓存前缀 600/2630 = 23%，全命中省 20%；预计命中率四成，20% × 0.4 ≈ 8%"
+          }
+        },
+        "unchanged": [
+          "输出质量分不变（在可识别线以内）",
+          "输入 token 数"
+        ],
+        "null_criterion": "TTFT P50 改善若小于 Baseline 的可识别线，视为不可分辨"
+      },
+      "fixed": {
+        "workload": {
+          "name": "prefill-long-context",
+          "type": "rag",
+          "length_prompt": {
+            "p50": 2630,
+            "p90": 6400,
+            "p99": 9200,
+            "max": 12000
+          },
+          "length_output": {
+            "p50": 180,
+            "p90": 320,
+            "p99": 480
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 0.25,
+            "duration_s": 800,
+            "seed": 20260922
+          },
+          "slo": {
+            "metric": "ttft",
+            "quantile": "p95",
+            "threshold_ms": 4000
+          },
+          "note": "第 6 章的描述文件，四轮完全相同，含随机种子",
+          "load_note": "按第 12 章的实测尺度，这份负载平均每条请求的 Prefill 约 1.2 s，0.25 req/s 时负载率约 0.3；每轮约 200 条请求，P95 护栏才有约 10 个尾部样本（5.5）"
+        },
+        "protocol": {
+          "warmup": 20,
+          "repeats": 3,
+          "window": "预热完成后 800 s，在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，四轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "四轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "enable_prefix_caching": "false → true"
+      },
+      "results": {
+        "primary_metric": "ttft_p50_ms",
+        "baseline": [
+          1195,
+          1221,
+          1210
+        ],
+        "variant": [
+          1009,
+          1028,
+          1020
+        ]
+      },
+      "guardrails": {
+        "request_hit_probability": "0.82，远高于预期的四成：单副本、全体共享的 system prompt，路由只剩首次写入那一刀（13.3），四成是当初拍的保守值",
+      "token_hit_rate": "0.19 = 0.82 × 23%，上限就是可缓存前缀那 23%；两个比例不能互相替代（13.3）",
+        "kv_pool_free_blocks": "不变：缓存块留在同一个 KV 池里，空闲时才占着，显存紧张时先被淘汰（13.3）",
+      "evicted_cache_block_ratio": "0.07，淘汰那一刀目前很轻；命中率掉下来时先看这个数"
+      },
+      "verdict": {
+        "label": "高于预期",
+        "baseline_mean": 1208.67,
+        "variant_mean": 1019.0,
+        "observed_pct": 0.1569,
+        "expected_pct": 0.08,
+        "gap_pct": 0.0769,
+        "detectable_difference": 0.0245,
+        "coefficient_of_variation": 0.0108,
+        "reading": "改善 15.7%，比预期的 8.0% 高出 7.7 个百分点，超过可识别线。按 14.5 的顺序排查，高于预期同样要找原因，常见的是预期的依据本身错了"
+      },
+      "boundary": {
+        "workload": "RAG，prompt P50 2630 / P99 9200，泊松 0.25 req/s（负载率约 0.3），含短请求；换成短 prompt 负载结论要重验",
+        "hardware": "单卡单副本；多副本会改变 Prefix Cache 的命中率",
+        "config": "temperature 0，Prefix Cache 除第 2 轮外全程关闭，nearest-rank 分位数",
+        "model": "Qwen2.5-0.5B：24 层、hidden 896、KV 头 2、GEMM 与 Attention 的交叉点 16640 token。换模型后交叉点会移动，本次结论需要重验"
+      }
+    },
+    {
+      "expectation": {
+        "written_at": "2026-09-22T09:00:00Z",
+        "direction": "无变化：确认而非改动",
+        "magnitude": {
+          "ttft_p50_ms": {
+            "expected_pct": 0.0,
+            "basis": "升级前后走的是同一条 kernel，预期落在可识别线之内"
+          }
+        },
+        "unchanged": [
+          "输出质量分不变：同一个数学结果不等于逐位相同，在线服务默认也不保证逐 token 可复现（14.4）"
+        ],
+        "null_criterion": "TTFT P50 变化若小于 Baseline 的可识别线，视为无变化"
+      },
+      "fixed": {
+        "workload": {
+          "name": "prefill-long-context",
+          "type": "rag",
+          "length_prompt": {
+            "p50": 2630,
+            "p90": 6400,
+            "p99": 9200,
+            "max": 12000
+          },
+          "length_output": {
+            "p50": 180,
+            "p90": 320,
+            "p99": 480
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 0.25,
+            "duration_s": 800,
+            "seed": 20260922
+          },
+          "slo": {
+            "metric": "ttft",
+            "quantile": "p95",
+            "threshold_ms": 4000
+          },
+          "note": "第 6 章的描述文件，四轮完全相同，含随机种子",
+          "load_note": "按第 12 章的实测尺度，这份负载平均每条请求的 Prefill 约 1.2 s，0.25 req/s 时负载率约 0.3；每轮约 200 条请求，P95 护栏才有约 10 个尾部样本（5.5）"
+        },
+        "protocol": {
+          "warmup": 20,
+          "repeats": 3,
+          "window": "预热完成后 800 s，在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，四轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "四轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "attention_backend": "确认为 FlashAttention（升级前已是同类实现）"
+      },
+      "results": {
+        "primary_metric": "ttft_p50_ms",
+        "baseline": [
+          1195,
+          1221,
+          1210
+        ],
+        "variant": [
+          1199,
+          1225,
+          1215
+        ]
+      },
+      "guardrails": {
+        "quality_score": "0.781 → 0.780，差值在可识别线以内",
+      "token_level_divergence": "200 条抽检里 3 条在第 90 个 token 之后出现分叉，符合浮点累加顺序改变的预期；本轮未开启批次无关，所以不把逐 token 一致当判据（14.4）",
+        "actual_kernel": "已记录实际走的 kernel 名，不是看装了哪个包"
+      },
+      "verdict": {
+        "label": "在波动内不可分辨",
+        "baseline_mean": 1208.67,
+        "variant_mean": 1213.0,
+        "observed_pct": -0.0036,
+        "expected_pct": 0.0,
+        "gap_pct": -0.0036,
+        "detectable_difference": 0.0245,
+        "coefficient_of_variation": 0.0108,
+        "reading": "改善 -0.4% 小于可识别线 2.4%，当前精度区分不出来。先降低波动，或者接受这个结论"
+      },
+      "boundary": {
+        "workload": "RAG，prompt P50 2630 / P99 9200，泊松 0.25 req/s（负载率约 0.3），含短请求；换成短 prompt 负载结论要重验",
+        "hardware": "单卡单副本；多副本会改变 Prefix Cache 的命中率",
+        "config": "temperature 0，Prefix Cache 除第 2 轮外全程关闭，nearest-rank 分位数",
+        "model": "Qwen2.5-0.5B：24 层、hidden 896、KV 头 2、GEMM 与 Attention 的交叉点 16640 token。换模型后交叉点会移动，本次结论需要重验"
+      }
+    },
+    {
+      "expectation": {
+        "written_at": "2026-09-22T09:00:00Z",
+        "direction": "短请求的 ITL 下降；长请求的 TTFT 上升",
+        "magnitude": {
+          "short_request_itl_p99_ms": {
+            "expected_pct": 0.5,
+            "basis": "长请求 Prefill 不再一次占满预算；按长请求 Prefill 与短请求 Decode 每次相遇都被打断来估"
+          }
+        },
+        "unchanged": [
+          "输入 token 数",
+          "计算总量"
+        ],
+        "null_criterion": "短请求 ITL 改善若小于其 Baseline 的可识别线，视为无效"
+      },
+      "fixed": {
+        "workload": {
+          "name": "prefill-long-context",
+          "type": "rag",
+          "length_prompt": {
+            "p50": 2630,
+            "p90": 6400,
+            "p99": 9200,
+            "max": 12000
+          },
+          "length_output": {
+            "p50": 180,
+            "p90": 320,
+            "p99": 480
+          },
+          "arrival": {
+            "mode": "poisson",
+            "rate": 0.25,
+            "duration_s": 800,
+            "seed": 20260922
+          },
+          "slo": {
+            "metric": "ttft",
+            "quantile": "p95",
+            "threshold_ms": 4000
+          },
+          "note": "第 6 章的描述文件，四轮完全相同，含随机种子",
+          "load_note": "按第 12 章的实测尺度，这份负载平均每条请求的 Prefill 约 1.2 s，0.25 req/s 时负载率约 0.3；每轮约 200 条请求，P95 护栏才有约 10 个尾部样本（5.5）"
+        },
+        "protocol": {
+          "warmup": 20,
+          "repeats": 3,
+          "window": "预热完成后 800 s，在途请求等其返回并计入（drained）",
+          "percentile_algorithm": "nearest-rank",
+          "stdev_convention": "sample (n-1)",
+          "temperature": 0,
+          "prefix_cache": "off",
+          "note": "第 7 章的协议，四轮完全相同"
+        },
+        "environment": {
+          "model_revision": "<合成数据：真机实验请填实际 revision>",
+          "framework_version": "<合成数据：vLLM 版本>",
+          "gpu": "<合成数据：真机实验请填实际 GPU>",
+          "driver": "<合成数据：驱动版本>",
+          "extra_args": "四轮相同；每轮改配置后重启并重新 Warmup"
+        }
+      },
+      "changed": {
+        "enable_chunked_prefill": "false → true"
+      },
+      "results": {
+        "primary_metric": "short_request_itl_p99_ms",
+        "baseline": [
+          210,
+          218,
+          214
+        ],
+        "variant": [
+          148,
+          152,
+          150
+        ]
+      },
+      "guardrails": {
+        "long_request_ttft_p95_ms": "3720 → 4430，变差 19%。方向在预期之内，但 4430 已经越过 14.3 定的 SLO 4000 ms：这是一次交换，要么调小块大小，要么接受长请求违约，必须写进结论",
+        "short_request_itl_p50_ms": "58 → 55",
+        "note": "本轮主指标不是 TTFT。只看长请求 TTFT 会得出这项技术有害的错误结论",
+        "why_lower": "负载率只有约 0.3，长请求 Prefill 和短请求 Decode 撞在一起的时候本来就少；预期按每次相遇都被打断来估，高估了能拿的空间"
+      },
+      "verdict": {
+        "label": "低于预期",
+        "baseline_mean": 214.0,
+        "variant_mean": 150.0,
+        "observed_pct": 0.2991,
+        "expected_pct": 0.5,
+        "gap_pct": -0.2009,
+        "detectable_difference": 0.0424,
+        "coefficient_of_variation": 0.0187,
+        "reading": "改善 29.9%，比预期的 50.0% 低 20.1 个百分点，超过可识别线。按 14.5 的顺序排查：先查变量泄漏，再查前提条件，最后才怀疑预期。另外长请求 TTFT P95 已越过 SLO 4000 ms，这一轮要作为一次交换上报，不能只报短请求那一侧的收益"
+      },
+      "boundary": {
+        "workload": "RAG，prompt P50 2630 / P99 9200，泊松 0.25 req/s（负载率约 0.3），含短请求；换成短 prompt 负载结论要重验",
+        "hardware": "单卡单副本；多副本会改变 Prefix Cache 的命中率",
+        "config": "temperature 0，Prefix Cache 除第 2 轮外全程关闭，nearest-rank 分位数",
+        "model": "Qwen2.5-0.5B：24 层、hidden 896、KV 头 2、GEMM 与 Attention 的交叉点 16640 token。换模型后交叉点会移动，本次结论需要重验"
+      }
+    }
+  ]
+}

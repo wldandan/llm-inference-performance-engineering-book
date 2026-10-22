@@ -1,0 +1,34 @@
+{
+  "_note": "合成设定。这份样例是 sample-pass 的“差一点”版本，专门踩中 30.4 那八条里的每一条：四条结构判定失败、四条启发式告警，外加第一处接缝对不上。用来演示verify.py 在一份看起来挺完整的项目上会说什么。",
+  "batch": 16,
+  "absolute_ttft_p95_ms": 1500,
+  "thresholds": {
+    "p50_latency_ms": 0.05,
+    "p95_latency_ms": 0.1,
+    "throughput_tps": 0.05,
+    "peak_memory_gib": 0.02
+  },
+  "threshold_basis": "连续 20 轮采集，各指标按自己的变异系数取约三倍：P50 的 CV 1.6% 取 5%，P95 的 CV 3.3% 取 10%，吞吐 1.5% 取 5%，显存 0.4% 取 2%（显存双向判）",
+  "assertions": [],
+  "baseline_update_rule": "只在 improvement 或 accepted_regression 两种情形换，需签字",
+  "rollback": {
+    "trigger_conditions": [
+      "P95 TTFT 连续 10 分钟超过 1500 ms"
+    ],
+    "steps": [
+      "网关权重切回旧版本"
+    ],
+    "rehearsed_duration_min": null,
+    "irreversible": [
+      "已写入的对话日志"
+    ],
+    "cache_warmup_min": null
+  },
+  "observation_windows": [
+    "前 10 分钟：错误率与拒绝率",
+    "前 2 小时：命中率恢复曲线、抢占计数、显存",
+    "前 24 小时：波峰下核对容量模型",
+    "前 7 天：成本与质量"
+  ],
+  "owner": "推理平台组，值班人 mango"
+}

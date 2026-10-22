@@ -1,0 +1,46 @@
+{
+  "synthetic": true,
+  "_note": "合成设定。一次静默回归：延迟、吞吐、显存全部正常，而这次动了精度却没带质量数据，且一条断言挂了。对应 28.4 的第一类和第二类。",
+  "environment": {
+    "framework_version": "vllm 0.8.2",
+    "model": "Generic-7B",
+    "gpu": "1 × 80GiB",
+    "workload_hash": "wl-3f9c1a",
+    "batch": 32
+  },
+  "variation": {
+    "p50_latency_ms": 0.018,
+    "p95_latency_ms": 0.026,
+    "throughput_tps": 0.021,
+    "peak_memory_gib": 0.004
+  },
+  "changed": [
+    "KV Cache 量化 fp16 → int8"
+  ],
+  "metrics": {
+    "p50_latency_ms": 392,
+    "p95_latency_ms": 918,
+    "p99_latency_ms": 1690,
+    "throughput_tps": 1639,
+    "peak_memory_gib": 48.7
+  },
+  "assertions": [
+    {
+      "name": "attention_kernel_allowlisted",
+      "passed": false,
+      "detail": "实际 kernel 是 naive_attention_fwd，不在白名单内"
+    },
+    {
+      "name": "prefix_cache_enabled",
+      "passed": true
+    },
+    {
+      "name": "quant_config_matches_declared",
+      "passed": true
+    }
+  ],
+  "saturation": {
+    "level": "0.92 of capacity",
+    "p95_latency_ms": 2180
+  }
+}

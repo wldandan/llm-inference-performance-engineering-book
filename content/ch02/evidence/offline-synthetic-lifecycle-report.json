@@ -18,9 +18,9 @@
       "request_id": "req-ok",
       "terminal_state": "finished",
       "durations_ms": {
-        "admission": 2,
+        "ingress": 2,
         "queue": 10,
-        "prefill": 30,
+        "scheduled_to_first_token": 30,
         "decode": 50,
         "response_tail": 5,
         "end_to_end": 97
@@ -30,9 +30,9 @@
       "request_id": "req-cancel",
       "terminal_state": "cancelled",
       "durations_ms": {
-        "admission": 2,
+        "ingress": 2,
         "queue": 18,
-        "prefill": null,
+        "scheduled_to_first_token": null,
         "decode": null,
         "response_tail": null,
         "end_to_end": 28
@@ -42,9 +42,9 @@
       "request_id": "req-failed",
       "terminal_state": "failed",
       "durations_ms": {
-        "admission": 2,
+        "ingress": 2,
         "queue": 3,
-        "prefill": 25,
+        "scheduled_to_first_token": 25,
         "decode": null,
         "response_tail": null,
         "end_to_end": 50

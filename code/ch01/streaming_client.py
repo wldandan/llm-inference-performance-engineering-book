@@ -1,4 +1,4 @@
-"""Chapter 02 streaming client: send real streaming requests to a vLLM OpenAI-compatible server.
+"""Chapter 01 streaming client: send real streaming requests to a vLLM OpenAI-compatible server.
 
 This script records client-observed first-content time, chunk intervals,
 total latency, server-reported token usage, and optional GPU snapshots.
@@ -9,7 +9,9 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import platform
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -54,16 +56,23 @@ class MetricsCollector:
     last_token_time: float | None = None
     token_timestamps: list[float] | None = None
     chunks: int = 0
+    raw_events: int = 0
+    empty_content_events: int = 0
     characters: int = 0
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    finish_reason: str | None = None
 
     def __post_init__(self) -> None:
         if self.token_timestamps is None:
             self.token_timestamps = []
 
     def on_content_chunk(self, timestamp: float, text: str) -> None:
+        # 1.9 的那个缺口：stream_chunks 只数正文非空的分片，而引擎发出的分片比它多。
+        # 两个计数一起记下来，254 和 256 的差才解释得了，不必去抓包。
+        self.raw_events += 1
         if text == "":
+            self.empty_content_events += 1
             return
         if self.first_token_time is None:
             self.first_token_time = timestamp
@@ -75,6 +84,10 @@ class MetricsCollector:
     def set_usage(self, prompt_tokens: int | None, completion_tokens: int | None) -> None:
         self.prompt_tokens = prompt_tokens
         self.completion_tokens = completion_tokens
+
+    def set_finish_reason(self, reason: str | None) -> None:
+        if reason:
+            self.finish_reason = reason
 
     def finish(self, end_time: float) -> dict[str, Any]:
         timestamps = self.token_timestamps or []
@@ -88,6 +101,9 @@ class MetricsCollector:
             "prompt_tokens": self.prompt_tokens,
             "output_tokens": self.completion_tokens,
             "stream_chunks": self.chunks,
+            "raw_content_events": self.raw_events,
+            "empty_content_events": self.empty_content_events,
+            "finish_reason": self.finish_reason,
             "output_characters": self.characters,
             "time_to_first_content_chunk_ms": round((self.first_token_time - self.start_time) * 1000.0, 2)
             if self.first_token_time is not None
@@ -120,6 +136,15 @@ def parse_sse_payload(line: bytes) -> dict[str, Any] | None:
     if data == "[DONE]":
         return {"done": True}
     return json.loads(data)
+
+
+def extract_finish_reason(payload: dict[str, Any]) -> str | None:
+    """finish_reason 落在流末尾的分片上；vLLM 把它和最后一段正文放在同一条（1.7）。"""
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    reason = choices[0].get("finish_reason")
+    return reason if isinstance(reason, str) else None
 
 
 def extract_delta_text(payload: dict[str, Any]) -> str:
@@ -179,6 +204,7 @@ def request_once(
                 prompt_tokens, completion_tokens = extract_usage(parsed)
                 if prompt_tokens is not None or completion_tokens is not None:
                     collector.set_usage(prompt_tokens, completion_tokens)
+                collector.set_finish_reason(extract_finish_reason(parsed))
                 collector.on_content_chunk(now, extract_delta_text(parsed))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
@@ -220,6 +246,46 @@ def gpu_snapshot() -> dict[str, Any] | None:
             }
         )
     return {"gpus": gpus}
+
+
+def server_version(base_url: str, api_key: str, timeout: float = 5.0) -> str | None:
+    """问一次服务自己的版本。1.1 要求环境记录里有它，报告里缺了就没法复现。"""
+    root = base_url.rstrip("/")
+    if root.endswith("/v1"):
+        root = root[: -len("/v1")]
+    request = urllib.request.Request(
+        f"{root}/version", headers={"Authorization": f"Bearer {api_key}"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return None
+    version = payload.get("version") if isinstance(payload, dict) else None
+    return version if isinstance(version, str) else None
+
+
+def validation_environment(base_url: str, api_key: str) -> dict[str, Any]:
+    """1.1 那五项：Python、vLLM、驱动、GPU、模型。模型在报告顶层，这里记其余四项。
+
+    拿不到的字段写 None 而不是省略：缺字段本身是要被看见的（1.9）。
+    """
+    gpu_name = driver = None
+    if shutil.which("nvidia-smi"):
+        try:
+            output = subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=name,driver_version",
+                 "--format=csv,noheader,nounits"], text=True, timeout=5).strip()
+            first = output.splitlines()[0]
+            gpu_name, driver = [part.strip() for part in first.split(",")]
+        except Exception:
+            pass
+    return {
+        "host": socket.gethostname(),
+        "python_version": platform.python_version(),
+        "gpu": gpu_name,
+        "driver_version": driver,
+        "vllm_version": server_version(base_url, api_key),
+    }
 
 
 def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -268,8 +334,10 @@ def build_report(
     results: list[dict[str, Any]],
     before_gpu: dict[str, Any] | None,
     after_gpu: dict[str, Any] | None,
+    environment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
+        "validation_environment": environment,
         "started_at": started_at,
         "base_url": base_url,
         "model": model,
@@ -340,6 +408,7 @@ def main() -> None:
         results=results,
         before_gpu=before_gpu,
         after_gpu=after_gpu,
+        environment=validation_environment(args.base_url, args.api_key),
     )
     text = json.dumps(report, ensure_ascii=False, indent=2)
     if args.output:

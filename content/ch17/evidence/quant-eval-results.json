@@ -1,0 +1,81 @@
+{
+  "_note": "合成样例，不是真机结果。它刻意演示 17.8 案例二那种失败：总分只掉 0.68 个百分点，能轻松通过 1 个百分点的底线，而格式化输出那一维已经掉了 3.9 个百分点——短问答样本多，把这一维的退化在平均值里稀释掉了。真机数据要按 17.4 的三条要求重新采集。",
+  "synthetic": true,
+  "baseline": {
+    "service": "http://localhost:8000",
+    "precision": "weight=fp16/kv=fp16"
+  },
+  "variant": {
+    "service": "http://localhost:8001",
+    "precision": "weight=int8/kv=fp16"
+  },
+  "threshold_written_at": "2026-09-23T09:10:00+08:00",
+  "protocol": {
+    "temperature": 0,
+    "seed": 20260923,
+    "rounds": 1
+  },
+  "baseline_scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.92,
+    0.92,
+    0.92,
+    0.92,
+    0.998,
+    0.998,
+    0.998,
+    0.8,
+    0.8,
+    0.8
+  ],
+  "variant_scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    0.917,
+    0.917,
+    0.917,
+    0.917,
+    0.959,
+    0.959,
+    0.959,
+    0.798,
+    0.798,
+    0.798
+  ],
+  "per_kind": {
+    "short_qa": {
+      "baseline": 1.0,
+      "variant": 1.0
+    },
+    "long_answer": {
+      "baseline": 0.92,
+      "variant": 0.917
+    },
+    "structured_output": {
+      "baseline": 0.998,
+      "variant": 0.959
+    },
+    "domain_hard": {
+      "baseline": 0.8,
+      "variant": 0.798
+    }
+  },
+  "_structured_output_note": "0.998 → 0.959 就是正文那个“JSON 解析失败率从 0.2% 涨到 4.1%”，二十倍。"
+}

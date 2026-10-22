@@ -1,0 +1,89 @@
+{
+  "synthetic": true,
+  "_note": "合成设定，不是真机评估。这一组数复现 22.8 案例二：多轮对话服务，长前缀是每段对话自己的历史（会话级前缀），对话量涨了四倍后从单实例扩到四实例。单实例命中率 90%；四实例轮询时同一段对话的下一轮只有四分之一的机会落回原实例，每个实例又要替全部对话存历史、缓存装不下，命中率掉到三成左右；按对话做带溢出的前缀亲和后回到约 80%，TTFT 680 ms。在自己的服务上起几个实例跑真数据后替换。",
+  "instances": 4,
+  "cacheable_share": 0.92,
+  "single_instance_baseline": {
+    "cache_hit_rate": 0.9,
+    "p95_ttft": 600.0
+  },
+  "strategies": {
+    "round-robin": {
+      "p95_ttft": 1250.0,
+      "per_instance": [
+        {
+          "requests": 1002,
+          "cache_hit_rate": 0.3,
+          "p95_ttft": 1210.0
+        },
+        {
+          "requests": 998,
+          "cache_hit_rate": 0.298,
+          "p95_ttft": 1240.0
+        },
+        {
+          "requests": 1001,
+          "cache_hit_rate": 0.295,
+          "p95_ttft": 1270.0
+        },
+        {
+          "requests": 999,
+          "cache_hit_rate": 0.292,
+          "p95_ttft": 1290.0
+        }
+      ]
+    },
+    "prefix-hash": {
+      "p95_ttft": 980.0,
+      "per_instance": [
+        {
+          "requests": 2400,
+          "cache_hit_rate": 0.88,
+          "p95_ttft": 1420.0
+        },
+        {
+          "requests": 700,
+          "cache_hit_rate": 0.9,
+          "p95_ttft": 760.0
+        },
+        {
+          "requests": 500,
+          "cache_hit_rate": 0.9,
+          "p95_ttft": 720.0
+        },
+        {
+          "requests": 400,
+          "cache_hit_rate": 0.9,
+          "p95_ttft": 700.0
+        }
+      ]
+    },
+    "prefix-hash-with-overflow": {
+      "p95_ttft": 680.0,
+      "per_instance": [
+        {
+          "requests": 1300,
+          "cache_hit_rate": 0.81,
+          "p95_ttft": 740.0
+        },
+        {
+          "requests": 950,
+          "cache_hit_rate": 0.8,
+          "p95_ttft": 670.0
+        },
+        {
+          "requests": 900,
+          "cache_hit_rate": 0.79,
+          "p95_ttft": 660.0
+        },
+        {
+          "requests": 850,
+          "cache_hit_rate": 0.79,
+          "p95_ttft": 650.0
+        }
+      ],
+      "overflow_share": 0.07
+    }
+  },
+  "prefix_scope": "session"
+}
