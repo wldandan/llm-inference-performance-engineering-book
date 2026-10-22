@@ -259,7 +259,7 @@ description: 面向推理系统的性能优化实战——看懂推理系统、�
     </section>
     <footer>
       <div class="wrap">
-        <p>LLM Performance Engineering · <a href="https://github.com/wldandan/llm-inference-performance-handbook">GitHub</a></p>
+        <p>LLM Performance Engineering · <a href="https://github.com/wldandan/llm-inference-performance-engineering-book">GitHub</a></p>
         <p>理解推理系统 → 分析性能问题 → 优化系统 → 工程实践</p>
       </div>
     </footer>

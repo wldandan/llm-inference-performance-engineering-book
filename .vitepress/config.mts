@@ -42,7 +42,7 @@ export default defineConfig({
   title: 'LLM 推理性能工程实战',
   description: '从模型原理、性能分析到 Serving 与 Agent 优化',
   srcDir: 'content',
-  base: '/llm-inference-performance-handbook/',
+  base: '/llm-inference-performance-engineering-book/',
   // 120 个插图注记文件不生成页面、不进搜索索引
   srcExclude: ['**/figures/*.md'],
   lastUpdated: true,
@@ -62,7 +62,7 @@ export default defineConfig({
     siteTitle: 'LLM 推理性能工程实战',
     nav: [
       { text: '开始阅读', link: '/preface' },
-      { text: '配套代码', link: 'https://github.com/wldandan/llm-inference-performance-handbook/tree/main/code' },
+      { text: '配套代码', link: 'https://github.com/wldandan/llm-inference-performance-engineering-book/tree/main/code' },
       {
         text: '速查',
         items: [
@@ -103,7 +103,7 @@ export default defineConfig({
     docFooter: { prev: '上一篇', next: '下一篇' },
     lastUpdated: { text: '最近更新' },
     editLink: {
-      pattern: 'https://github.com/wldandan/llm-inference-performance-handbook/edit/main/content/:path',
+      pattern: 'https://github.com/wldandan/llm-inference-performance-engineering-book/edit/main/content/:path',
       text: '在 GitHub 上编辑此页',
     },
     search: {
@@ -134,7 +134,7 @@ export default defineConfig({
       },
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/wldandan/llm-inference-performance-handbook' },
+      { icon: 'github', link: 'https://github.com/wldandan/llm-inference-performance-engineering-book' },
     ],
     darkModeSwitchLabel: '外观',
     sidebarMenuLabel: '目录',
