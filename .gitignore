@@ -3,6 +3,10 @@ AGENTS.md
 skills/
 .learnings/
 
+# 写作过程产物，不入库
+Claude outputs/
+strategy/
+
 # Local OS/editor/cache files
 .DS_Store
 **/.DS_Store
@@ -25,3 +29,8 @@ chapter*/demo/outputs/
 # Reference books (copyrighted, not distributable)
 ref/*.pdf
 ref/book-code
+
+# 站点构建（VitePress）
+node_modules/
+.vitepress/dist/
+.vitepress/cache/
