@@ -1,6 +1,17 @@
 # LLM 推理性能工程与实践
 
-> 从模型原理、性能分析到 Serving 与 Agent 优化
+> 从一次请求出发，建立可测量、可诊断、可验证的推理性能工程方法。
+
+本仓库只维护 **Book**：30章正文、配套章节代码、插图和编辑审阅记录。教学编排、专项实验、课程材料与性能工作台在独立的 [Course 仓库](https://github.com/wldandan/llm-inference-performance-engineering-course) 中维护。
+
+| 内容 | 入口 |
+|---|---|
+| 阅读全书 | [第一篇导读](content/part01.md) |
+| 查看章节代码 | [代码索引](code/README.md) |
+| 了解写作与审阅规则 | [编辑策略](strategy/README.md) |
+| 参加课程和运行实验 | [Course 仓库](https://github.com/wldandan/llm-inference-performance-engineering-course) |
+
+Book 与 Course 共享知识体系，但发布节奏独立。Course 可以引用确定版本的章节，不在课程仓复制书稿。
 
 **在线阅读：<https://wldandan.github.io/llm-inference-performance-handbook/>**
 
